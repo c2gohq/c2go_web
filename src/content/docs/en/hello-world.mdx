@@ -1,0 +1,111 @@
+---
+title: Hello World
+description: Compile one C function into a Go package and call it from a Go test.
+locale: en
+section: start
+order: 3
+release: v0.20260729.0-rc.5
+sourceLinks:
+  - label: SDK quick start
+    url: https://github.com/c2gohq/c2go_toolchain/blob/v0.20260729.0-rc.5/SDK-README.md#quick-start
+  - label: c2go-bind usage
+    url: https://github.com/c2gohq/c2go_bind/blob/v0.20260729.0-rc.5/README.md#usage
+---
+
+This walkthrough compiles one C addition function into a Go package and calls it from a Go test. It assumes the matching SDK is on `PATH` and `C2GO_TARGET` contains the target triple for your downloaded archive.
+
+## 1. Create a Go module
+
+```sh
+mkdir hello-c2go
+cd hello-c2go
+go mod init example.com/hello-c2go
+go get github.com/c2gohq/c2go_libc@v0.20260729.0-rc.5
+```
+
+Set the triple that matches your SDK. For macOS arm64:
+
+```sh
+export C2GO_TARGET=aarch64-apple-darwin
+```
+
+## 2. Write your C function
+
+Create `input.c`:
+
+```c
+#include <stdint.h>
+#include <c2go.h>
+
+c2go_extern int add(int a, int b) {
+    return a + b;
+}
+```
+
+`c2go_extern` marks a **defined** C function for export. The default generated Go name capitalizes the first character, so `add` becomes `Add`.
+
+## 3. Compile with c2go-clang
+
+```sh
+c2go-clang --target="$C2GO_TARGET" \
+  -fc2go \
+  -fc2go-package=example.com/hello-c2go/translated \
+  -O2 \
+  -fc2go-emit-plan9-asm=translated.s \
+  -fc2go-emit-manifest=translated.json \
+  -c -o translated.o input.c
+```
+
+The important outputs are `translated.s` and `translated.json`. `translated.o` is incidental to this pipeline.
+
+## 4. Generate the Go package
+
+```sh
+mkdir -p translated
+c2go-bind \
+  --pkg=example.com/hello-c2go/translated \
+  --out=translated \
+  --sidecar=translated.json \
+  translated.s
+```
+
+The output directory now contains generated Go declarations, assembly, ABI guards, runtime glue, and generated-code licensing records. Keep those licensing files when redistributing the generated package.
+
+## 5. Call it from Go
+
+Create `add_test.go` in the module root:
+
+```go
+package hello_c2go_test
+
+import (
+    "testing"
+
+    "example.com/hello-c2go/translated"
+)
+
+func TestAdd(t *testing.T) {
+    got := translated.Add(20, 22)
+    if got != 42 {
+        t.Fatalf("translated.Add(20, 22) = %d, want 42", got)
+    }
+}
+```
+
+Run the test:
+
+```sh
+go test ./...
+```
+
+Expected result:
+
+```text
+ok  example.com/hello-c2go
+```
+
+## What just happened
+
+The compiler lowered C into Plan 9 assembly for the selected Go OS and architecture. The manifest told `c2go-bind` that `add` is exported, which target and ABI epoch the assembly uses, and which runtime support is required. `c2go-bind` generated the Go-visible `Add` declaration and copied the matching assembly into the package.
+
+Next, inspect the [build pipeline](/en/docs/build-pipeline/) and learn why target, package path, assembly, and manifest must remain coordinated.

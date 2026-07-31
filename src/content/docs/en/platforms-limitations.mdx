@@ -1,0 +1,65 @@
+---
+title: Platforms and limits
+description: Distinguish released host SDKs from compiler targets and understand fail-closed boundaries.
+locale: en
+section: build
+order: 15
+release: v0.20260729.0-rc.5
+sourceLinks:
+  - label: Compatibility matrix
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#7-compatibility-matrix
+  - label: Current release notes
+    url: https://github.com/c2gohq/c2go_toolchain/blob/v0.20260729.0-rc.5/RELEASE_NOTES/v0.20260729.0-rc.5.md
+---
+
+Compiler implementation coverage and published SDK coverage are different claims. Use the release asset list when selecting a supported host package.
+
+## Published SDK archives
+
+The current coordinated release publishes and validates:
+
+| Host    | Architecture | Target triple                 |
+| ------- | ------------ | ----------------------------- |
+| Linux   | amd64        | `x86_64-unknown-linux-goabi`  |
+| Linux   | arm64        | `aarch64-unknown-linux-goabi` |
+| Windows | amd64        | `x86_64-pc-windows-goabi`     |
+| macOS   | arm64        | `aarch64-apple-darwin`        |
+
+Each archive is native to its host. Generated output is also specific to `(GOOS, GOARCH)`.
+
+## Additional code-generation paths
+
+The compiler contains paths for Darwin amd64 and partially exercised Windows arm64 in addition to the release matrix. That does not mean a ready-to-use SDK archive or full release gate exists for those combinations.
+
+## Boundary feature matrix
+
+| Feature                                | Unix                                | Windows                             |
+| -------------------------------------- | ----------------------------------- | ----------------------------------- |
+| Go calls: scalar, float, pointer       | supported                           | supported                           |
+| Export C functions and records         | supported                           | supported                           |
+| Native imports: scalar, pointer, float | supported                           | supported                           |
+| Native imports: small records by value | supported within ABI limits         | supported by Win64 size rules       |
+| Callback: scalar and pointer           | supported                           | supported                           |
+| Callback: float or double              | supported                           | fail closed                         |
+| Callback: selected small records       | supported                           | fail closed                         |
+| Multi-value return                     | supported for valid one-slot fields | supported for valid one-slot fields |
+
+“Fail closed” means the toolchain rejects an unsupported shape instead of emitting a silently incorrect call.
+
+## Hard language limits
+
+- C only and 64-bit only; C++ is rejected.
+- Variable-length arrays and dynamic `alloca` are rejected because movable Go stacks make their bases unsound.
+- Managed records cannot be packed or override individual field alignment.
+- Dynamic interface-method dispatch through `c2go_iface` is unavailable.
+- `c2go_variant` cannot represent ambiguous overlapping managed pointers.
+- `c2go_returntype` fields must each occupy one supported Go ABI result slot.
+- Callback operands must name C2Go functions; bare C2Go function pointers cannot be passed to native callback slots.
+
+## Release-candidate status
+
+The current binaries are unsigned. The macOS archive is not notarized and the Windows executable is not Authenticode-signed. Go 1.26 is outside the current release's ABI window. Interfaces, manifest fields, and ABI epochs may change before 1.0.
+
+When an unsupported shape appears, reduce it to a simpler boundary—for example, pass a pointer to explicitly owned storage instead of a large record by value—and add tests for every target you intend to ship.
+
+The [troubleshooting guide](/en/docs/troubleshooting/) maps common diagnostics to the relevant stage.

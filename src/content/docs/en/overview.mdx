@@ -1,0 +1,82 @@
+---
+title: Overview
+description: What C2Go produces, where it runs, and when it is a good fit.
+locale: en
+section: start
+order: 1
+release: v0.20260729.0-rc.5
+sourceLinks:
+  - label: c2go user guide
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md
+  - label: Toolchain release
+    url: https://github.com/c2gohq/c2go_toolchain/releases/tag/v0.20260729.0-rc.5
+---
+
+C2Go is a Clang mode that compiles **C source into artifacts the Go toolchain can build as a Go package**. The resulting code runs under the Go runtime: it uses goroutine stacks and scheduling, can allocate objects visible to the Go garbage collector, and can call across the C/Go boundary.
+
+This is ahead-of-time compilation. C2Go does not embed a C compiler in your application and it does not compile C at startup.
+
+## What the toolchain produces
+
+For a C translation unit, `c2go-clang` produces:
+
+- Plan 9 assembly (`.s`) for the Go assembler;
+- a JSON manifest describing exported symbols, types, target information, callbacks, and linker inputs; and
+- an incidental object file when the driver is invoked with `-c`.
+
+`c2go-bind` consumes the assembly and manifest and writes generated `.go` and `.s` files into a normal Go package. `go build` or `go test` completes the build.
+
+```text
+C source
+   │
+   ▼
+c2go-clang + c2go-lto
+   │  Plan 9 assembly + JSON manifest
+   ▼
+c2go-bind
+   │  generated .go + .s package
+   ▼
+Go toolchain + c2go-libc
+```
+
+## What is different from ordinary C
+
+C2Go adds an explicit distinction between two memory worlds:
+
+- **managed** values participate in the Go runtime's memory model and are the default;
+- **unmanaged** values represent native C memory and external C ABI boundaries.
+
+That distinction lets the compiler preserve precise GC information. It also means some C operations that are normally unchecked become warnings or errors when they could hide pointers from the collector.
+
+The public extensions in `<c2go.h>` include:
+
+| Feature                          | Purpose                                             |
+| -------------------------------- | --------------------------------------------------- |
+| `gc_malloc` and `c2go_typeinfo`  | Allocate typed objects on the Go heap               |
+| `c2go_extern`                    | Export a defined C function to Go                   |
+| `c2go_linkname`                  | Bind a C declaration to a Go symbol                 |
+| `unmanaged extern`               | Import a native C symbol                            |
+| `c2go_callback` / `c2go_callout` | Move callable function pointers across the boundary |
+| `c2go_returntype`                | Describe a Go multi-value result with a C struct    |
+
+## Current scope
+
+The coordinated release is intentionally narrow:
+
+- C only; C++ is not supported;
+- 64-bit `amd64` and `arm64` code generation;
+- Go 1.25.x for the current SDK release;
+- separate generated output for each OS and architecture; and
+- pre-1.0 APIs and ABI details that may still change.
+
+The release page lists the host SDK archives that are actually built and tested. Do not infer a supported release package merely because a backend can generate code for a target.
+
+## When to use C2Go
+
+C2Go is useful when you want to port or reuse C implementation code while presenting a normal Go package to its consumers. It is especially relevant when the code benefits from Go-managed allocation or needs tighter runtime integration than a conventional process boundary.
+
+It is not yet a drop-in replacement for every cgo project. C++ code, 32-bit targets, dynamic stack allocation, packed managed records, and several platform-specific callback shapes remain outside the current contract.
+
+## Next step
+
+Install the matching SDK and Go runtime module, then compile one exported C function in [Hello World](/en/docs/hello-world/).

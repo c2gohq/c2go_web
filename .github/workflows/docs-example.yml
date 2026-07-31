@@ -1,0 +1,55 @@
+name: C2Go documentation example
+
+on:
+  pull_request:
+    paths:
+      - "examples/hello/**"
+      - "src/content/docs/**/hello-world.mdx"
+      - ".github/workflows/docs-example.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  hello-world:
+    runs-on: ubuntu-latest
+    env:
+      C2GO_VERSION: v0.20260729.0-rc.5
+      C2GO_TARGET: x86_64-unknown-linux-goabi
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.25.9
+      - name: Download and verify the pinned SDK
+        run: |
+          archive="c2go-toolchain-${C2GO_VERSION}-linux-amd64.tar.gz"
+          base="https://github.com/c2gohq/c2go_toolchain/releases/download/${C2GO_VERSION}"
+          curl --fail --location --retry 3 --output "$archive" "$base/$archive"
+          curl --fail --location --retry 3 --output "$archive.sha256" "$base/$archive.sha256"
+          sha256sum --check "$archive.sha256"
+          tar -xzf "$archive"
+          echo "C2GO_HOME=$PWD/${archive%.tar.gz}" >> "$GITHUB_ENV"
+      - name: Run the documented C to Go pipeline
+        run: |
+          export PATH="$C2GO_HOME/bin:$PATH"
+          work="$RUNNER_TEMP/hello-c2go"
+          cp -R examples/hello "$work"
+          cd "$work"
+          go mod init example.com/hello-c2go
+          go get "github.com/c2gohq/c2go_libc@${C2GO_VERSION}"
+          c2go-clang --target="$C2GO_TARGET" \
+            -fc2go \
+            -fc2go-package=example.com/hello-c2go/translated \
+            -O2 \
+            -fc2go-emit-plan9-asm=translated.s \
+            -fc2go-emit-manifest=translated.json \
+            -c -o translated.o input.c
+          mkdir translated
+          c2go-bind \
+            --pkg=example.com/hello-c2go/translated \
+            --out=translated \
+            --sidecar=translated.json \
+            translated.s
+          go test ./...

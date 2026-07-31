@@ -1,0 +1,68 @@
+---
+title: 原生库
+description: 导入宿主 C ABI 符号，同时明确保持 managed 边界。
+locale: zh-cn
+section: interop
+order: 9
+release: v0.20260729.0-rc.5
+sourceLinks:
+  - label: unmanaged extern 导入
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#44-调用外部-c-库unmanaged-extern-导入
+  - label: c2go-bind 链接选项
+    url: https://github.com/c2gohq/c2go_bind/blob/v0.20260729.0-rc.5/README.zh-CN.md#用法
+---
+
+标记为 `unmanaged extern` 的声明会从真实 `.so`、`.dylib` 或 `.dll` 导入符号。调用会从 C2Go managed 执行模型跨越到宿主 C ABI。
+
+## 声明导入
+
+```c
+#include <c2go.h>
+
+unmanaged extern double cos(double value);
+
+c2go_extern double cosine(double value) {
+    return cos(value);
+}
+```
+
+只有实际引用的 import 才会生成 wrapper；未使用声明不会增加 dispatch 代码。
+
+`c2go_extern` 不是 import 标记：它把一个 C 定义导出给 Go。这两个概念有意保持分离。
+
+## 告诉 c2go-bind 加载哪个库
+
+绑定时传入动态库名称和可选搜索目录：
+
+```sh
+c2go-bind \
+  --pkg=example.com/demo/native \
+  --out=native \
+  --sidecar=native.json \
+  -l m \
+  -L /opt/example/lib \
+  native.s
+```
+
+manifest 通常会决定需要 Unix 还是 Windows dispatch glue。`--extern-os=unix|windows` 只用于受控覆盖，不应用它掩盖 target mismatch。
+
+## 指针仍然需要所有权规则
+
+wrapper 负责 calling convention 和 runtime transition，但不会凭空创造所有权策略。传递指针前必须明确：
+
+- 内存由哪一侧分配；
+- callee 是否在返回后继续保存；
+- buffer 是否可能包含 managed 指针；
+- 最终由哪一侧释放。
+
+如果外部库会保存 buffer，原生 unmanaged 分配通常是更保守的默认方案。把 managed 指针传过边界可能产生有损转换 warning，并需要明确设计生命周期。
+
+## 受支持的调用形状
+
+当前 Unix 与 Windows target 支持标量、指针、`float` 和 `double` 导入。在目标 ABI 限制内支持小 record 按值传递；更大或特殊形状会使用 wrapper 或 fail closed。变参导入和平台特有 record 应增加专门的跨目标测试。
+
+## 直接调用与函数指针
+
+调用 `cos(value)` 会自动经过生成的宿主桥。如果需要 C2Go 可调用的函数指针，使用 `c2go_callout(cos)`；如果需要把原生地址交回另一个 native API，使用 `&cos`，但不要从 C2Go 直接调用这个裸地址。
+
+下一章通过[回调](/zh-cn/docs/callbacks/)详细说明两个方向。

@@ -1,0 +1,72 @@
+---
+title: CLI reference
+description: Practical reference for c2go-clang, c2go-lto, and c2go-bind.
+locale: en
+section: build
+order: 14
+release: v0.20260729.0-rc.5
+sourceLinks:
+  - label: Compiler flags
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#5-c2go-clang-command-line
+  - label: Binder flags
+    url: https://github.com/c2gohq/c2go_bind/blob/v0.20260729.0-rc.5/README.md#usage
+---
+
+This page summarizes the stable user-facing flags in the coordinated release. Run each installed tool with `--help` or `-h` for its exact complete list.
+
+## c2go-clang
+
+| Flag                               | Meaning                                                            |
+| ---------------------------------- | ------------------------------------------------------------------ |
+| `-fc2go`                           | Enable managed-by-default C and Go ABI lowering                    |
+| `--target=<triple>`                | Select machine architecture, OS data model, and Go ABI environment |
+| `-fc2go-package=<path>`            | Go package path used for symbol names; defaults to `main`          |
+| `-fc2go-emit-plan9-asm=<file>`     | Write Plan 9 assembly                                              |
+| `-fc2go-emit-manifest=<file>`      | Write the JSON export manifest                                     |
+| `-fc2go-target-go-version=<lo-hi>` | Encode a supported Go version interval; upper bound is exclusive   |
+| `-O0` / `-O2`                      | Select unoptimized or optimized C2Go lowering                      |
+
+A normal SDK invocation uses the driver, not bare `-cc1`:
+
+```sh
+c2go-clang --target=x86_64-unknown-linux-goabi \
+  -fc2go -fc2go-package=example.com/acme/mypkg -O2 \
+  -fc2go-emit-plan9-asm=out.s \
+  -fc2go-emit-manifest=out.json \
+  -c -o out.o input.c
+```
+
+Advanced internal knobs are passed as `-mllvm -<flag>`. They include extern-wrapper fallback, selective pass disabling, and cooperative loop-poll timing. Treat them as diagnostic controls rather than package API.
+
+## c2go-lto
+
+| Flag                              | Meaning                                         |
+| --------------------------------- | ----------------------------------------------- |
+| `--c2go-emit-asm=<file>`          | Write merged Plan 9 assembly                    |
+| `--c2go-emit-manifest=<file>`     | Write merged manifest                           |
+| `--c2go-emit-archive=<file>`      | Pack assembly and manifest into an `ar` archive |
+| `--c2go-escape-nonfatal`          | Report escape findings without exit status 1    |
+| `--c2go-lto-inline[=0]`           | Enable or disable cross-unit inlining           |
+| `--c2go-andersen-field-sensitive` | Enable field-sensitive escape analysis          |
+| `--c2go-escape-dedup`             | Deduplicate escape reports                      |
+| `--c2go-print-stats`              | Print pipeline statistics                       |
+
+## c2go-bind
+
+| Option               | Meaning                                             |
+| -------------------- | --------------------------------------------------- |
+| `--pkg`              | Required final Go import path                       |
+| `--pkgname`          | Override the generated `package` clause             |
+| `--goname`           | Base name for the generated Go file                 |
+| `--out`              | Output directory; defaults to the current directory |
+| `--sidecar`          | Explicit manifest for one assembly input            |
+| `-l name` / `-L dir` | Link a native import and add probe directories      |
+| `--extern-os`        | Strict override: exactly `unix` or `windows`        |
+| `--dry-run`          | Print generated Go instead of writing files         |
+| `--go`               | Go command used for compatibility probing           |
+| `--skip-go-probe`    | Skip the Go contract probe; avoid in release builds |
+| `--version`          | Print binder version                                |
+
+`c2go-bind` accepts `.s` files, manifests, C2Go `ar` archives, and multiple compatible inputs. Normal on-disk generation writes licensing records alongside the package.
+
+Continue with the [platform and limitation matrix](/en/docs/platforms-limitations/).

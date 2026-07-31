@@ -1,0 +1,71 @@
+---
+title: Inline assembly
+description: Use Clang's existing call-free inline assembly while respecting Go stack and GC rules.
+locale: en
+section: build
+order: 13
+release: v0.20260729.0-rc.5
+sourceLinks:
+  - label: C2Go inline-assembly regression test
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/llvm/test/Transforms/C2Go/c2go-inline-asm-morestack.ll
+---
+
+C2Go supports **Clang's existing call-free inline assembly lowering**. It does not replace inline assembly with a special C2Go function API, and support is not limited to one hard-coded template.
+
+## Empty compiler barriers work
+
+The pattern used by musl's secure-clearing code is supported:
+
+```c
+static void compiler_barrier(void *pointer) {
+    __asm__ __volatile__("" : : "r"(pointer) : "memory");
+}
+```
+
+The empty template emits no machine instruction. The register input keeps `pointer` live to the compiler, while the `memory` clobber prevents memory operations from being moved across the barrier.
+
+This is not a hardware memory fence. Use target-appropriate atomics or fence instructions when ordering must be visible to other processors.
+
+## Leaf instructions are supported
+
+Non-empty call-free instructions use the normal Clang constraint and target machinery:
+
+```c
+#if defined(__aarch64__)
+    __asm__ __volatile__("yield" ::: "memory");
+#elif defined(__x86_64__)
+    __asm__ __volatile__("pause" ::: "memory");
+#endif
+```
+
+The source remains target-specific. Guard instructions, register constraints, and clobbers exactly as you would in portable Clang C.
+
+## Why call-free matters
+
+LLVM models inline assembly as a `CallBase`, but a supported inline-asm statement is not a machine `CALL` or `BL` and cannot enter a callee's Go `morestack` prologue. C2Go therefore marks it GC-leaf and does not create a safepoint or stackmap for the statement itself.
+
+Managed pointer operands remain ordinary live values. If the pointer is live across a later real call, normal GC relocation applies before subsequent inline assembly uses it.
+
+An inline-assembly statement inside a call-free loop also does not make the loop cooperative. If loop polling is enabled, C2Go still inserts the required poll.
+
+## Unsupported or unsafe uses
+
+Do not hide these behaviors inside inline assembly:
+
+- calls to another function or code that may grow the goroutine stack;
+- unreported memory access or register clobbers;
+- creation of long-lived native aliases to managed stack addresses;
+- assumptions about stack alignment beyond the target's generated-code contract; or
+- platform instructions without target guards.
+
+If assembly must call functions, own a native stack frame, or expose a stable C ABI entry point, put it behind an explicitly unmanaged native-library boundary instead of disguising it as leaf inline assembly.
+
+## Review checklist
+
+1. Confirm the template is call-free.
+2. Declare every input, output, and clobber.
+3. Test each target independently.
+4. Inspect generated Plan 9 assembly for the intended instruction and stack addressing.
+5. Add an end-to-end Go test, not only an LLVM IR test.
+
+See the [CLI reference](/en/docs/cli-reference/) for the flags used to retain and inspect compiler outputs.

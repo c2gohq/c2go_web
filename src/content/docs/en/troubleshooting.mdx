@@ -1,0 +1,74 @@
+---
+title: Troubleshooting
+description: Diagnose failures by separating compiler, binder, Go ABI, runtime, and platform issues.
+locale: en
+section: build
+order: 16
+release: v0.20260729.0-rc.5
+sourceLinks:
+  - label: Known limitations
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#8-known-limitations-and-constraints
+  - label: c2go-bind requirements
+    url: https://github.com/c2gohq/c2go_bind/blob/v0.20260729.0-rc.5/README.md#requirements
+---
+
+Start by identifying which stage failed. A compiler diagnostic, manifest validation error, Go build error, and runtime crash have different evidence and should not be debugged as one opaque pipeline.
+
+## Header not found or wrong declarations
+
+**Symptom:** `c2go.h` or libc declarations cannot be found, or the host libc header set is selected.
+
+Use the packaged `c2go-clang` with the SDK directories kept together. Do not add a host libc include path. `c2go.h` must exist once in the Clang resource tree; top-level `include/` belongs to c2go-libc.
+
+```sh
+c2go-clang -print-resource-dir
+c2go-clang --target="$C2GO_TARGET" -fc2go -E -v input.c
+```
+
+## Manifest and assembly disagree
+
+**Symptom:** `c2go-bind` reports target, version, epoch, symbol, type, or callback conflicts.
+
+Delete stale generated inputs and rebuild the `.s` and JSON manifest together. Check that `-fc2go-package` equals `--pkg`, and never reuse an output filename across targets in a shared build directory.
+
+## Go compatibility probe fails
+
+The binder checks the active Go toolchain's frame-accounting contract. Use the Go version required by the coordinated release—currently Go 1.25.x. Do not make `--skip-go-probe` a permanent workaround; it is for controlled diagnosis.
+
+```sh
+go version
+c2go-bind --version
+```
+
+## Managed/unmanaged diagnostics
+
+Warnings about managed-to-unmanaged call, store, or return indicate loss of precise GC tracking. Trace the pointer's allocation and ownership instead of casting it through an integer. Errors about cross-type layouts or unmanaged records with managed fields require changing the data representation.
+
+For CI, enable `-Werror=c2go-managed-as1` after migration warnings have been reviewed.
+
+## Native symbol cannot be resolved
+
+Confirm the declaration is `unmanaged extern`, the symbol is actually referenced, and the binder receives the correct `-l` and `-L` options. Verify the library matches the target architecture. On Windows, also check the exact exported symbol spelling.
+
+## Callback fails on one platform
+
+Compare the signature with the compatibility matrix. Windows callback support intentionally rejects floating-point and several record shapes. Reduce the callback to pointer/integer arguments or provide a native shim with an explicitly tested ABI.
+
+## Runtime fault
+
+Preserve the exact generated `.go`, `.s`, manifest, tool versions, target triple, and Go stack trace. Reproduce with a minimal function and both `-O0` and `-O2`. A failure at only one optimization level is important compiler evidence; it is not a reason to silently ship the other level without a regression test.
+
+Check pointer ownership, stack-address escape, inline-assembly clobbers, and calls that cross native boundaries. A green compiler test is not a substitute for an end-to-end `go test` using the generated package.
+
+## A useful issue bundle
+
+When reporting a problem, include:
+
+1. C source reduced to the smallest reproducer;
+2. exact compiler and binder commands;
+3. target triple and `go version`;
+4. `c2go-clang`, `c2go-lto`, `c2go-bind`, and c2go-libc release;
+5. generated manifest and relevant assembly excerpt; and
+6. complete diagnostic or Go stack trace.
+
+Before redistributing a package or SDK, review the [licensing boundaries](/en/docs/licensing/).

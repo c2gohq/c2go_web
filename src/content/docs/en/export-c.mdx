@@ -1,0 +1,71 @@
+---
+title: Export C to Go
+description: Expose defined C functions and managed records as generated Go APIs.
+locale: en
+section: concepts
+order: 7
+release: v0.20260729.0-rc.5
+sourceLinks:
+  - label: Exporting C functions and structs
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#46-export-c-to-go
+---
+
+`c2go_extern` exports a **defined** C function through the generated package. Managed record metadata lets `c2go-bind` expose a matching Go-visible layout.
+
+## Export a function
+
+```c
+#include <c2go.h>
+
+c2go_extern long sum(const long *values, long count) {
+    long total = 0;
+    for (long i = 0; i < count; ++i) {
+        total += values[i];
+    }
+    return total;
+}
+```
+
+The default Go export name capitalizes the first C character: `sum` becomes `Sum`. The package path is the value supplied to both `-fc2go-package` and `c2go-bind --pkg`.
+
+Use the raw attribute form with `C2GO_KEEPCASE` only when exact spelling is part of an existing contract:
+
+```c
+__attribute__((c2go_extern(C2GO_KEEPCASE)))
+int ParseID(const char *text) { /* ... */ }
+```
+
+Declarations and definitions must agree. Put `c2go_extern` on the first declaration; adding it only on a later redeclaration is rejected.
+
+## Export a managed record
+
+```c
+managed struct Point {
+    double x;
+    double y;
+};
+
+c2go_extern struct Point translate(
+    struct Point point,
+    double dx,
+    double dy
+) {
+    point.x += dx;
+    point.y += dy;
+    return point;
+}
+```
+
+The manifest records size, field offsets, and pointer layout. `c2go-bind` uses those facts to generate a Go-compatible type rather than guessing from host compiler defaults.
+
+Managed records cannot be packed and cannot use per-field alignment overrides. Those layouts have no equivalent under the Go contract.
+
+## Names reserved by Go
+
+An exported `init` or `main` function cannot retain a lowercase name. These names have language-level meaning in Go, so C2Go rejects an export that would collide with them.
+
+## Keep the generated package intact
+
+Generated files include ABI/version guards and may include runtime imports, GC metadata, or native-call glue in addition to the visible declarations. Do not copy only the public-looking `.go` file. Keep the complete generated directory and its licensing records together.
+
+The reverse direction—declaring and calling an existing Go symbol—is covered in [Call Go from C](/en/docs/call-go/).

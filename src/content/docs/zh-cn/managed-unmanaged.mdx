@@ -1,0 +1,87 @@
+---
+title: Managed 与 unmanaged
+description: 理解 C2Go 用来保持 Go GC 健全的两个内存世界。
+locale: zh-cn
+section: concepts
+order: 5
+release: v0.20260729.0-rc.5
+sourceLinks:
+  - label: managed/unmanaged 模型
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#3-managed--unmanaged-世界核心心智模型
+---
+
+每个 C2Go 类型、对象、字段、参数和函数都属于 **managed** 或 **unmanaged** 世界。这是编译器检查的内存契约，不只是说明性标记。
+
+## Managed 是默认状态
+
+Managed 指针指向 Go 垃圾回收器跟踪的内存。写入 managed 指针时会保留精确的指针信息，并插入 Go runtime 需要的写屏障。
+
+```c
+#include <c2go.h>
+
+managed struct Node {
+    struct Node *next;
+    int value;
+};
+```
+
+C2Go 默认就是 managed，因此显式的 `managed` 最适合用于标明公共边界。
+
+## Unmanaged 表示原生内存
+
+Unmanaged 指针是类似 `unsafe.Pointer` 的裸值，用于原生 allocator 管理的内存和外部 C ABI 边界。
+
+```c
+unmanaged struct RawBuffer {
+    void *data;
+    long length;
+};
+```
+
+普通 `malloc`、`calloc`、`realloc` 与 `free` 仍操作 unmanaged C heap，不会被静默改写为 Go 分配。
+
+## 设置一段声明的默认世界
+
+迁移一组声明时可以使用 pragma：
+
+```c
+#pragma c2go unmanaged push
+struct NativeHeader { void *handle; long flags; };
+extern int native_open(struct NativeHeader *);
+#pragma c2go unmanaged pop
+```
+
+范围应尽量小。过大的 unmanaged 区域会让意外丢失 GC 精度的问题更难审核。
+
+## 有损转换会产生 warning
+
+某些跨界操作仍能表达，但会丢失精确跟踪。以下行为会产生 warning：
+
+- 以 unmanaged 形式传递、存储或返回 managed 指针；
+- 把 managed 指针转换成整数；
+- 把栈上局部变量地址存进 managed heap root。
+
+这些诊断属于 `-Wc2go-managed-as1`。迁移期间可以先按 warning 检查；长期维护的代码建议提升为错误：
+
+```sh
+-Werror=c2go-managed-as1
+```
+
+关闭 warning 并不会让转换变得精确。
+
+## 不健全的布局会直接报错
+
+以下操作会让 GC 对内存的认知发生结构性错误，因此 C2Go 会拒绝：
+
+- 在 GC 布局不兼容的 managed 指针类型之间 bit-cast；
+- 在 unmanaged record 中放入 managed 字段；
+- 对 managed record 使用 packed 或逐字段 alignment 覆盖；
+- 在 managed union 表示中使用无法消歧的重叠指针字段。
+
+不要用整数转换绕过错误。应重新设计边界：让原生存储保持 unmanaged，或者明确地把数据复制到有清晰生命周期的 managed 表示。
+
+## 边界选择原则
+
+与 Go 对象共同生存、或需要跨 Go 调用保留的数据使用 managed 内存。只有当原生 API 拥有分配、或明确要求原生指针表示时才使用 unmanaged，并在声明中清楚标出每一次跨界。
+
+下一章使用 [GC 感知分配](/zh-cn/docs/gc-allocation/)创建带类型的 managed 对象。

@@ -1,0 +1,68 @@
+---
+title: 构建管线
+description: 跟踪 C 源码如何经过 Clang、C2Go LTO、绑定生成器和 Go 工具链。
+locale: zh-cn
+section: concepts
+order: 4
+release: v0.20260729.0-rc.5
+sourceLinks:
+  - label: 端到端管线
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#9-端到端形态一次构建长什么样
+  - label: c2go-bind 输入
+    url: https://github.com/c2gohq/c2go_bind/blob/v0.20260729.0-rc.5/README.zh-CN.md#它在工具链中的位置
+---
+
+C2Go 把编译和 package 生成拆成两个阶段。理解这个边界，会让构建失败更容易定位。
+
+## 阶段一：C 前端与 LLVM bitcode
+
+`c2go-clang` 在启用 C2Go 语言扩展后解析 C。target triple 同时控制机器代码和 C data model，例如 `long` 在 Linux 与 Darwin 上为 8 字节，而在 64 位 Windows 上为 4 字节。
+
+请求输出 Plan 9 汇编或 manifest 时，每个源文件会先编译成 LLVM bitcode，driver 随后调用同一 `bin/` 目录中的 `c2go-lto`。
+
+## 阶段二：C2Go LTO
+
+`c2go-lto` 链接一个或多个 bitcode module，并运行 C2Go lowering 管线。跨 translation unit 内联、逃逸审计、Go 栈处理、GC statepoint、写屏障、ABI lowering 和最终 Plan 9 输出，都在这里统一协调。
+
+即使只输入一个源文件，只要指定 emit flag，driver 内部也会经过这条路径：
+
+```text
+cc1 → LLVM bitcode → c2go-lto → output.s + output.json
+```
+
+`-O0` 和 `-O2` 都受支持。`-O0` 会关闭寄存器 ABI 与叶子函数优化；`-O2` 才启用面向性能的管线。
+
+## 阶段三：由 manifest 指导绑定
+
+只有汇编还不够。JSON manifest 保存了 Go 源码生成器无法可靠地从文本汇编恢复的信息，包括：
+
+- package 与导出符号名称；
+- 目标 `GOOS` 和 `GOARCH`；
+- 支持的 Go 版本范围与 C2Go ABI epoch；
+- record 布局、字段与 GC pointer mask；
+- Go linkname 与多返回值；
+- 原生导入、动态库、回调和 callout。
+
+`c2go-bind` 会先验证所有输入彼此一致，再写入文件。target、ABI epoch、符号、类型或回调元数据发生冲突时会直接拒绝生成。
+
+## 阶段四：普通 Go 构建
+
+生成目录就是普通 Go package，其中包含 Go 声明、带目标选择的汇编、runtime anchor，以及需要的动态导入胶水。Go 工具链将这些文件与固定版本的 `c2go-libc` module 一起汇编、链接。
+
+应用启动时不会再调用 C 编译器。
+
+## 必须保持一致的值
+
+| 值                                    | 为什么必须匹配                                 |
+| ------------------------------------- | ---------------------------------------------- |
+| `-fc2go-package` 与 `c2go-bind --pkg` | 两者共同确定最终 Go import path 与符号命名空间 |
+| 汇编与 manifest                       | 它们描述同一个编译单元                         |
+| target triple 与 Go build target      | Plan 9 汇编与 OS/架构绑定                      |
+| compiler、binder 与 libc 版本         | manifest 和 runtime ABI 会协同版本化           |
+| Go 工具链版本                         | 生成阶段会检查栈帧和 ABI 契约                  |
+
+## 有用的检查点
+
+构建失败时，先保留 `.s` 与 `.json` 文件对。调试生成 Go 代码前，检查 manifest 中的 target 与 ABI 版本。可以用 `c2go-bind --dry-run` 在不修改输出目录的情况下检查 Go 输出；直接诊断编译管线时使用 `c2go-lto --c2go-print-stats`。
+
+下一章介绍支配整个指针语义的 [managed 与 unmanaged](/zh-cn/docs/managed-unmanaged/) 模型。

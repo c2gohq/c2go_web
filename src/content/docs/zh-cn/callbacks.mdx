@@ -1,0 +1,68 @@
+---
+title: 回调
+description: 在 C2Go 代码与原生 C API 之间安全传递函数指针。
+locale: zh-cn
+section: interop
+order: 10
+release: v0.20260729.0-rc.5
+sourceLinks:
+  - label: callback 与 callout 模型
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#45-回调进-cc2go_callback
+---
+
+C2Go 函数不能直接交给原生代码，因为 native caller 不知道如何进入 Go runtime。`c2go_callback` 会创建所需的 native-callable trampoline。
+
+## 把 C2Go callback 传给原生代码
+
+```c
+#include <c2go.h>
+
+static int compare_ints(const void *left, const void *right) {
+    int a = *(const int *)left;
+    int b = *(const int *)right;
+    return (a > b) - (a < b);
+}
+
+void sort_values(void *base, size_t count) {
+    qsort(base, count, sizeof(int), c2go_callback(compare_ints));
+}
+```
+
+trampoline 允许来自外部线程的回调通过 runtime callback 路径进入 Go 世界。`static` 函数也可以；通过 `c2go_callback` 引用会强制发射该函数。
+
+把裸 `compare_ints` 传给宿主 callback 参数会被拒绝。
+
+## 获得 C2Go 可调用的宿主函数指针
+
+`c2go_callout` 是相反方向：
+
+```c
+unmanaged extern int host_compare(const void *, const void *);
+
+int (*compare)(const void *, const void *) = c2go_callout(host_compare);
+int result = compare(left, right);
+```
+
+对标量、指针和浮点签名，结果表现得像普通函数指针。record 按值或变参签名可能携带 import stack ABI；需要精确指针类型时，使用 `__typeof__(c2go_callout(host_compare))`。
+
+## 获得裸宿主地址
+
+`&host_compare` 返回原生函数裸地址，用于交回给另一个 native API：
+
+```c
+unmanaged extern void host_register(int (*callback)(int, int));
+unmanaged extern int host_add(int, int);
+
+host_register(&host_add);                 // 裸宿主函数
+host_register(c2go_callback(my_add));     // 包装后的 C2Go 函数
+```
+
+不要从 C2Go 直接调用 `&host_add`。在这个方向上应使用具名 import 或 `c2go_callout`。
+
+## 平台限制
+
+Unix callback 支持标量、指针、浮点和部分小 record 形状。Windows 使用 `syscall.NewCallback`，浮点 callback 与若干 record 返回形状会 fail closed。应把每一种 callback 签名纳入项目的平台兼容矩阵。
+
+callback 用于真正从 managed 执行环境外部发起的调用，不要把 trampoline 当成普通 C2Go 函数调用的通用替代方案。
+
+下一章查看这些 API 可以使用的[跨边界数据类型](/zh-cn/docs/data-types/)。

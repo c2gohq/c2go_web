@@ -1,0 +1,72 @@
+---
+title: 命令行参考
+description: c2go-clang、c2go-lto 与 c2go-bind 的实用参数参考。
+locale: zh-cn
+section: build
+order: 14
+release: v0.20260729.0-rc.5
+sourceLinks:
+  - label: 编译器参数
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#5-c2go-clang-命令行
+  - label: Binder 参数
+    url: https://github.com/c2gohq/c2go_bind/blob/v0.20260729.0-rc.5/README.zh-CN.md#用法
+---
+
+本页汇总当前协同版本中稳定的用户侧参数。精确完整列表以已安装工具的 `--help` 或 `-h` 输出为准。
+
+## c2go-clang
+
+| 参数                               | 含义                                              |
+| ---------------------------------- | ------------------------------------------------- |
+| `-fc2go`                           | 开启 managed-by-default C 与 Go ABI lowering      |
+| `--target=<triple>`                | 选择机器架构、OS data model 与 Go ABI environment |
+| `-fc2go-package=<path>`            | 符号命名使用的 Go package path；默认 `main`       |
+| `-fc2go-emit-plan9-asm=<file>`     | 输出 Plan 9 汇编                                  |
+| `-fc2go-emit-manifest=<file>`      | 输出 JSON export manifest                         |
+| `-fc2go-target-go-version=<lo-hi>` | 写入支持的 Go 版本区间；上界不包含                |
+| `-O0` / `-O2`                      | 选择未优化或优化的 C2Go lowering                  |
+
+SDK 的正常调用应使用 driver，而不是裸 `-cc1`：
+
+```sh
+c2go-clang --target=x86_64-unknown-linux-goabi \
+  -fc2go -fc2go-package=example.com/acme/mypkg -O2 \
+  -fc2go-emit-plan9-asm=out.s \
+  -fc2go-emit-manifest=out.json \
+  -c -o out.o input.c
+```
+
+高级内部 knob 通过 `-mllvm -<flag>` 传入，包括 extern-wrapper fallback、选择性关闭 pass 和 cooperative loop-poll 间隔。应把它们看作诊断控制，而不是 package API。
+
+## c2go-lto
+
+| 参数                              | 含义                                  |
+| --------------------------------- | ------------------------------------- |
+| `--c2go-emit-asm=<file>`          | 输出合并的 Plan 9 汇编                |
+| `--c2go-emit-manifest=<file>`     | 输出合并 manifest                     |
+| `--c2go-emit-archive=<file>`      | 把汇编与 manifest 打包为 `ar` archive |
+| `--c2go-escape-nonfatal`          | 报告逃逸但不以状态 1 退出             |
+| `--c2go-lto-inline[=0]`           | 开启或关闭跨单元内联                  |
+| `--c2go-andersen-field-sensitive` | 开启 field-sensitive 逃逸分析         |
+| `--c2go-escape-dedup`             | 合并重复逃逸报告                      |
+| `--c2go-print-stats`              | 打印管线统计                          |
+
+## c2go-bind
+
+| 选项                 | 含义                                         |
+| -------------------- | -------------------------------------------- |
+| `--pkg`              | 必填的最终 Go import path                    |
+| `--pkgname`          | 覆盖生成的 `package` 子句                    |
+| `--goname`           | 生成 Go 文件的基础名称                       |
+| `--out`              | 输出目录；默认为当前目录                     |
+| `--sidecar`          | 为单个汇编输入指定 manifest                  |
+| `-l name` / `-L dir` | 绑定原生 import 并增加探测目录               |
+| `--extern-os`        | 严格覆盖，只接受 `unix` 或 `windows`         |
+| `--dry-run`          | 打印生成 Go，而不是写文件                    |
+| `--go`               | 兼容性探测使用的 Go 命令                     |
+| `--skip-go-probe`    | 跳过 Go contract probe；release 构建不要使用 |
+| `--version`          | 打印 binder 版本                             |
+
+`c2go-bind` 接受 `.s`、manifest、C2Go `ar` archive 以及多个兼容输入。正常写盘生成会在 package 中同时写入授权记录。
+
+接下来查看[平台与限制矩阵](/zh-cn/docs/platforms-limitations/)。

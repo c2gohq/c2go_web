@@ -1,0 +1,159 @@
+---
+import BaseLayout from "./BaseLayout.astro";
+import DocsSidebar from "@/components/DocsSidebar.astro";
+import Icon from "@/components/Icon.astro";
+import {
+  docsNavigation,
+  flatDocs,
+  docsPath,
+  type Locale,
+} from "@/data/navigation";
+import { ui } from "@/i18n";
+import { release } from "@/data/release";
+
+interface Heading {
+  depth: number;
+  slug: string;
+  text: string;
+}
+interface SourceLink {
+  label: string;
+  url: string;
+}
+interface Props {
+  locale: Locale;
+  slug: string;
+  title: string;
+  description: string;
+  headings: Heading[];
+  sourceLinks: SourceLink[];
+}
+
+const { locale, slug, title, description, headings, sourceLinks } = Astro.props;
+const t = ui[locale];
+const index = flatDocs.findIndex((item) => item.slug === slug);
+const previous = index > 0 ? flatDocs[index - 1] : undefined;
+const next =
+  index >= 0 && index < flatDocs.length - 1 ? flatDocs[index + 1] : undefined;
+const tocHeadings = headings.filter(
+  (heading) => heading.depth === 2 || heading.depth === 3,
+);
+const currentSection = docsNavigation.find((section) =>
+  section.items.some((item) => item.slug === slug),
+);
+---
+
+<BaseLayout
+  locale={locale}
+  title={title}
+  description={description}
+  noFooter
+  headerMode="docs"
+>
+  <div class="docs-mobile-bar">
+    <button
+      type="button"
+      data-docs-menu
+      aria-controls="docs-sidebar"
+      aria-expanded="false"
+    >
+      <Icon name="menu" />
+      {t.menu}
+    </button>
+    <span>{currentSection?.title[locale]}</span>
+  </div>
+  <div class="docs-shell">
+    <DocsSidebar locale={locale} currentSlug={slug} />
+    <main class="docs-main" id="main-content" data-pagefind-body>
+      <div class="version-note">
+        <span>{t.releaseCandidate}</span>
+        <a href={release.releaseUrl}>{release.version}</a>
+        <p>{t.versionNotice}</p>
+      </div>
+      <article class="docs-article">
+        <header class="docs-title">
+          <p>{currentSection?.title[locale]}</p>
+          <h1>{title}</h1>
+          <span>{description}</span>
+        </header>
+        <slot />
+      </article>
+      <section class="source-links" aria-labelledby="source-heading">
+        <h2 id="source-heading">{t.editSource}</h2>
+        <ul>
+          {
+            sourceLinks.map((source) => (
+              <li>
+                <a href={source.url}>
+                  {source.label}
+                  <Icon name="external" size={15} />
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </section>
+      <nav class="docs-pager" aria-label="Pagination">
+        {
+          previous ? (
+            <a class="previous" href={docsPath(locale, previous.slug)}>
+              <>
+                <span>{t.previous}</span>
+                <strong>{previous.title[locale]}</strong>
+              </>
+            </a>
+          ) : (
+            <span />
+          )
+        }
+        {
+          next && (
+            <a class="next" href={docsPath(locale, next.slug)}>
+              <>
+                <span>{t.next}</span>
+                <strong>{next.title[locale]}</strong>
+              </>
+            </a>
+          )
+        }
+      </nav>
+    </main>
+    <aside class="docs-toc">
+      <strong>{t.onThisPage}</strong>
+      <nav aria-label={t.onThisPage}>
+        {
+          tocHeadings.map((heading) => (
+            <a
+              class:list={[heading.depth === 3 && "nested"]}
+              href={`#${heading.slug}`}
+            >
+              {heading.text}
+            </a>
+          ))
+        }
+      </nav>
+    </aside>
+  </div>
+  <script is:inline>
+    const docsMenu = document.querySelector("[data-docs-menu]");
+    const sidebar = document.querySelector(".docs-sidebar");
+    docsMenu?.addEventListener("click", () => {
+      const open = sidebar?.classList.toggle("is-open") ?? false;
+      docsMenu.setAttribute("aria-expanded", String(open));
+    });
+    document.querySelectorAll(".docs-article pre").forEach((pre) => {
+      const button = document.createElement("button");
+      button.className = "copy-code";
+      button.type = "button";
+      button.setAttribute("aria-label", "Copy code");
+      button.innerHTML =
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"></rect><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"></path></svg>';
+      button.addEventListener("click", async () => {
+        await navigator.clipboard.writeText(pre.textContent || "");
+        button.classList.add("copied");
+        setTimeout(() => button.classList.remove("copied"), 1200);
+      });
+      pre.append(button);
+    });
+  </script>
+</BaseLayout>

@@ -1,0 +1,103 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import Icon from "@/components/Icon.astro";
+import { release } from "@/data/release";
+import type { Locale } from "@/data/navigation";
+
+export function getStaticPaths() {
+  return [{ params: { locale: "en" } }, { params: { locale: "zh-cn" } }];
+}
+const locale = Astro.params.locale as Locale;
+const cn = locale === "zh-cn";
+const details = {
+  "c2go-clang": cn
+    ? "基于 LLVM/Clang 的 C2Go 编译器，输出 Go ABI 的 Plan 9 汇编和结构化 manifest。"
+    : "The LLVM/Clang-based C2Go compiler that emits Go-ABI Plan 9 assembly and a structured manifest.",
+  "c2go-bind": cn
+    ? "读取汇编与 manifest，生成可导入的 Go package、声明、链接胶水和授权记录。"
+    : "Consumes assembly and manifests to generate importable Go packages, declarations, linker glue, and license records.",
+  "c2go-libc": cn
+    ? "面向 Go runtime 的 C 运行时兼容层，包含 managed 分配、libc API 与平台实现。"
+    : "A C runtime compatibility layer for the Go runtime, including managed allocation, libc APIs, and platform implementations.",
+  musl: cn
+    ? "C2Go 使用的 musl 分支；保留 musl 的许可条款及逐文件第三方声明。"
+    : "The musl fork used by C2Go, retaining musl terms and file-specific third-party notices.",
+};
+---
+
+<BaseLayout
+  locale={locale}
+  title={cn ? "组件" : "Components"}
+  description={cn
+    ? "组成 C2Go 工具链的独立项目与许可边界。"
+    : "The independent projects and license boundaries that make up the C2Go toolchain."}
+>
+  <main id="main-content" class="inner-page" data-pagefind-body>
+    <header class="inner-hero">
+      <p>C2Go toolchain</p>
+      <h1>
+        {
+          cn
+            ? "一条工具链，明确的组件边界。"
+            : "One toolchain, clear component boundaries."
+        }
+      </h1>
+      <span
+        >{
+          cn
+            ? "每个仓库独立演进并保留自己的源码来源、版本和授权记录。"
+            : "Each repository evolves independently and retains its own source provenance, version, and licensing records."
+        }</span
+      >
+    </header>
+    <div class="component-list">
+      {
+        release.components.map((component, index) => (
+          <article>
+            <span class="component-index">0{index + 1}</span>
+            <div>
+              <h2>{component.name}</h2>
+              <p>{details[component.name]}</p>
+              <dl>
+                <div>
+                  <>
+                    <dt>{cn ? "版本" : "Revision"}</dt>
+                    <dd>
+                      <code>{component.revision.slice(0, 12)}</code>
+                    </dd>
+                  </>
+                </div>
+                <div>
+                  <>
+                    <dt>{cn ? "协议" : "License"}</dt>
+                    <dd>{component.license}</dd>
+                  </>
+                </div>
+              </dl>
+            </div>
+            <a href={component.repository}>
+              {cn ? "查看仓库" : "Open repository"}
+              <Icon name="external" size={17} />
+            </a>
+          </article>
+        ))
+      }
+    </div>
+    <aside class="component-note">
+      <Icon name="layers" size={26} />
+      <div>
+        <strong
+          >{
+            cn ? "聚合不改变授权" : "Aggregation does not change licenses"
+          }</strong
+        ><p>
+          {
+            cn
+              ? "c2go-toolchain 只固定各组件版本；它不会替换或缩小 LLVM、musl、Go 或其他第三方材料的原有条款。"
+              : "c2go-toolchain coordinates component revisions; it does not replace or narrow the terms of LLVM, musl, Go, or other third-party material."
+          }
+        </p>
+      </div>
+    </aside>
+  </main>
+</BaseLayout>

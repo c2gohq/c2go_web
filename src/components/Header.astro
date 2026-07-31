@@ -1,0 +1,199 @@
+---
+import Icon from "./Icon.astro";
+import { localizedPath, type Locale } from "@/data/navigation";
+import { ui } from "@/i18n";
+
+interface Props {
+  locale: Locale;
+  mode?: "marketing" | "docs";
+}
+const { locale, mode = "marketing" } = Astro.props;
+const t = ui[locale];
+const docsMode = mode === "docs";
+const otherLocale: Locale = locale === "en" ? "zh-cn" : "en";
+const alternatePath = Astro.url.pathname.startsWith(`/${locale}`)
+  ? Astro.url.pathname.replace(`/${locale}`, `/${otherLocale}`)
+  : localizedPath(otherLocale);
+---
+
+<header class="site-header">
+  <div class="header-inner" data-header-mode={mode}>
+    <a class="brand" href={localizedPath(locale)} aria-label="C2Go home">
+      <img src="/brand/c2gohq-logo.png" alt="" width="40" height="40" />
+      <span>C2Go</span>
+    </a>
+    {
+      !docsMode && (
+        <nav class="desktop-nav" aria-label="Primary navigation">
+          <a href={localizedPath(locale, "docs/overview")}>{t.docs}</a>
+          <a href={localizedPath(locale, "components")}>{t.components}</a>
+          <a href={localizedPath(locale, "releases")}>{t.releases}</a>
+          <a href="https://github.com/c2gohq" target="_blank" rel="noreferrer">
+            {t.github}
+            <Icon name="external" size={15} />
+          </a>
+        </nav>
+      )
+    }
+    <div class="header-actions">
+      {
+        docsMode && (
+          <button
+            class="search-trigger"
+            type="button"
+            data-open-search
+            aria-haspopup="dialog"
+          >
+            <Icon name="search" size={18} />
+            <span>{t.search}</span>
+            <kbd>/</kbd>
+          </button>
+        )
+      }
+      {
+        docsMode && (
+          <a
+            class="header-github"
+            href="https://github.com/c2gohq"
+            target="_blank"
+            rel="noreferrer"
+          >
+            {t.github}
+            <Icon name="external" size={15} />
+          </a>
+        )
+      }
+      <a
+        class="locale-switch"
+        href={alternatePath}
+        hreflang={otherLocale}
+        data-locale-choice={otherLocale}>{t.language}</a
+      >
+      <details class="theme-picker">
+        <summary aria-label={t.theme}><Icon name="sun" size={19} /></summary>
+        <div class="theme-menu" role="group" aria-label={t.theme}>
+          <button type="button" data-theme-choice="system">{t.system}</button>
+          <button type="button" data-theme-choice="light">{t.light}</button>
+          <button type="button" data-theme-choice="dark">{t.dark}</button>
+        </div>
+      </details>
+      <details class="mobile-menu">
+        <summary aria-label={t.menu}><Icon name="menu" /></summary>
+        <nav aria-label="Mobile navigation">
+          <a href={localizedPath(locale, "docs/overview")}>{t.docs}</a>
+          <a href={localizedPath(locale, "components")}>{t.components}</a>
+          <a href={localizedPath(locale, "releases")}>{t.releases}</a>
+          <a href="https://github.com/c2gohq">{t.github}</a>
+        </nav>
+      </details>
+    </div>
+  </div>
+</header>
+
+{
+  docsMode && (
+    <dialog
+      class="search-dialog"
+      data-search-dialog
+      aria-labelledby="search-title"
+    >
+      <div class="search-dialog-header">
+        <div>
+          <strong id="search-title">{t.search}</strong>
+          <span>{t.searchHint}</span>
+        </div>
+        <button type="button" data-close-search aria-label={t.close}>
+          <Icon name="close" />
+        </button>
+      </div>
+      <form class="search-form" data-search-form role="search">
+        <Icon name="search" />
+        <input
+          name="query"
+          type="search"
+          autocomplete="off"
+          placeholder={t.search}
+        />
+      </form>
+      <div class="search-results" data-search-results aria-live="polite" />
+    </dialog>
+  )
+}
+
+<script is:inline define:vars={{ locale }}>
+  (() => {
+    const dialog = document.querySelector("[data-search-dialog]");
+    const openButtons = document.querySelectorAll("[data-open-search]");
+    const closeButton = document.querySelector("[data-close-search]");
+    const form = document.querySelector("[data-search-form]");
+    const input = form?.querySelector("input");
+    const results = document.querySelector("[data-search-results]");
+
+    const open = () => {
+      if (!(dialog instanceof HTMLDialogElement)) return;
+      dialog.showModal();
+      requestAnimationFrame(() => input?.focus());
+    };
+    openButtons.forEach((button) => button.addEventListener("click", open));
+    closeButton?.addEventListener("click", () => dialog?.close());
+    dialog?.addEventListener("click", (event) => {
+      if (event.target === dialog) dialog.close();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (
+        event.key === "/" &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey
+      ) {
+        const target = event.target;
+        if (
+          target instanceof HTMLInputElement ||
+          target instanceof HTMLTextAreaElement
+        )
+          return;
+        event.preventDefault();
+        open();
+      }
+    });
+
+    form?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const query = input?.value.trim();
+      if (!query || !results) return;
+      results.textContent = locale === "zh-cn" ? "正在搜索…" : "Searching…";
+      try {
+        const pagefind = await import("/pagefind/pagefind.js");
+        await pagefind.options({ baseUrl: `/${locale}/` });
+        const response = await pagefind.search(query);
+        const entries = await Promise.all(
+          response.results.slice(0, 8).map((item) => item.data()),
+        );
+        results.replaceChildren();
+        if (!entries.length) {
+          results.textContent =
+            locale === "zh-cn" ? "没有找到结果。" : "No results found.";
+          return;
+        }
+        entries.forEach((entry) => {
+          const anchor = document.createElement("a");
+          anchor.className = "search-result";
+          anchor.href = entry.url;
+          const title = document.createElement("strong");
+          title.textContent = entry.meta?.title || entry.url;
+          const excerpt = document.createElement("span");
+          const temporary = document.createElement("span");
+          temporary.innerHTML = entry.excerpt || "";
+          excerpt.textContent = temporary.textContent || "";
+          anchor.append(title, excerpt);
+          results.append(anchor);
+        });
+      } catch {
+        results.textContent =
+          locale === "zh-cn"
+            ? "搜索索引会在生产构建后可用。"
+            : "The search index is available after a production build.";
+      }
+    });
+  })();
+</script>

@@ -1,0 +1,55 @@
+---
+title: Licensing
+description: Understand the separate licenses for the website, compiler, binder, libc, generated support, and C2Go branding.
+locale: en
+section: build
+order: 17
+release: v0.20260729.0-rc.5
+sourceLinks:
+  - label: Toolchain licensing boundaries
+    url: https://github.com/c2gohq/c2go_toolchain/blob/v0.20260729.0-rc.5/LICENSING.md
+  - label: Commercial licensing
+    url: https://github.com/c2gohq/c2go_toolchain/blob/v0.20260729.0-rc.5/COMMERCIAL-LICENSING.md
+  - label: Trademark policy
+    url: https://github.com/c2gohq/c2go_toolchain/blob/v0.20260729.0-rc.5/TRADEMARKS.md
+---
+
+C2Go is a coordinated toolchain with several copyright and license boundaries. Downloading one aggregate archive does not turn every contained file into one uniformly licensed work.
+
+## Component licenses
+
+| Component                   | Principal terms                                                                                             |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| c2go-clang                  | `Apache-2.0 WITH LLVM-exception`, plus file-specific upstream terms                                         |
+| c2go-bind original material | `AGPL-3.0-only` or a separate commercial agreement                                                          |
+| c2go-libc                   | Mixed C2Go-owned, musl-derived, Go/PureGo-derived, and platform material                                    |
+| musl fork                   | musl MIT terms and file-specific notices                                                                    |
+| c2go-toolchain repository   | Original coordination scripts/docs under its stated AGPL terms, excluding branding and third-party material |
+
+Always read the root license documents and `licenses/` directory shipped in the exact SDK archive you redistribute.
+
+## User source and generated output
+
+Running the compiler does not by itself transfer ownership of your C input. Generated packages can, however, include substantial support code copied from c2go-bind and portions adapted from third parties. Those retained portions keep their licenses.
+
+Normal `c2go-bind` generation writes `C2GO-GENERATED-LICENSING.txt` and relevant license texts into the destination. Preserve them with redistributed generated packages.
+
+## Commercial licenses
+
+Applicable C2Go copyright holders may grant separate commercial terms for rights they control. Such an agreement cannot relicense LLVM, musl, Go, PureGo, platform SDK material, user code, or other third-party works.
+
+A GitHub Sponsors payment can be named as a payment channel in a separately executed agreement. Sponsorship, a receipt, or a tier selection does not by itself grant commercial software rights.
+
+## Website and documentation
+
+Original program code in this website repository is available under `AGPL-3.0-only` or a separate commercial agreement. Original documentation under `src/content/docs/` is available under `CC BY-SA 4.0` or a separate commercial agreement. Quoted code, upstream facts, linked material, and third-party assets retain their own terms.
+
+See the repository's `LICENSING.md`, `LICENSE`, `LICENSE-DOCS`, and `NOTICE` for the canonical boundary.
+
+## Names and logo
+
+The C2Go and c2gohq names, the C2Go logo, and related visual identity are branding, not software source code. Their presence in a repository does not include them in the AGPL or documentation license grant.
+
+Truthful, non-confusing reference to the project is allowed under the trademark policy. Modified forks should use distinguishable branding and must not imply official status, sponsorship, or endorsement.
+
+This page explains the project structure and is not legal advice. For a commercial agreement, identify the legal licensor, licensee, software version or commit, rights, territory, term, payment, and third-party exclusions in a separately executed document.

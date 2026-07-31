@@ -1,0 +1,71 @@
+---
+title: 内联汇编
+description: 在遵守 Go 栈和 GC 规则的前提下，使用 Clang 现有的 call-free 内联汇编。
+locale: zh-cn
+section: build
+order: 13
+release: v0.20260729.0-rc.5
+sourceLinks:
+  - label: C2Go 内联汇编回归测试
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/llvm/test/Transforms/C2Go/c2go-inline-asm-morestack.ll
+---
+
+C2Go 支持 **Clang 现有的 call-free inline assembly lowering**。它不会把内联汇编替换成某个 C2Go 专用函数 API，支持范围也不局限于某个硬编码模板。
+
+## 空 compiler barrier 可以工作
+
+musl 安全清零代码使用的模式受支持：
+
+```c
+static void compiler_barrier(void *pointer) {
+    __asm__ __volatile__("" : : "r"(pointer) : "memory");
+}
+```
+
+空模板不会发射机器指令。register input 使编译器认为 `pointer` 仍然存活，`memory` clobber 阻止内存操作跨过这条 barrier 重排。
+
+它不是硬件 memory fence。如果顺序必须对其他处理器可见，应使用与 target 匹配的 atomic 或 fence 指令。
+
+## 支持叶子指令
+
+非空的 call-free 指令沿用 Clang 普通 constraint 与 target 机制：
+
+```c
+#if defined(__aarch64__)
+    __asm__ __volatile__("yield" ::: "memory");
+#elif defined(__x86_64__)
+    __asm__ __volatile__("pause" ::: "memory");
+#endif
+```
+
+源码仍然与 target 相关。应像编写可移植 Clang C 一样，正确保护指令、寄存器 constraint 和 clobber。
+
+## 为什么必须 call-free
+
+LLVM 把 inline assembly 表示成 `CallBase`，但受支持的 inline-asm statement 不是机器 `CALL` 或 `BL`，不会进入 callee 的 Go `morestack` prologue。因此 C2Go 将它标为 GC-leaf，不为语句本身创建 safepoint 或 stackmap。
+
+Managed pointer operand 仍是普通 live value。如果指针跨越后面的真实 call 存活，常规 GC relocation 会在后续 inline assembly 使用前生效。
+
+call-free loop 内存在 inline assembly，也不会让循环自动变得 cooperative。启用 loop polling 时，C2Go 仍会插入所需 poll。
+
+## 不支持或不安全的用法
+
+不要把以下行为隐藏在 inline assembly 中：
+
+- 调用其他函数，或任何可能增长 goroutine 栈的代码；
+- 未声明的内存访问或寄存器 clobber；
+- 为 managed 栈地址创建长期存在的 native alias；
+- 假设超出 target 生成代码契约的栈对齐；
+- 未经过 target guard 的平台指令。
+
+如果汇编需要调用函数、管理 native stack frame 或暴露稳定 C ABI 入口，应放到显式 unmanaged 原生库边界后面，而不是伪装成叶子 inline assembly。
+
+## 审核清单
+
+1. 确认模板不包含 call。
+2. 声明每一个 input、output 与 clobber。
+3. 分别测试每个 target。
+4. 检查生成的 Plan 9 汇编是否包含预期指令和正确栈寻址。
+5. 增加端到端 Go 测试，而不只依赖 LLVM IR test。
+
+用于保留和检查编译产物的参数见[命令行参考](/zh-cn/docs/cli-reference/)。

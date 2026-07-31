@@ -1,0 +1,21 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+---
+
+<BaseLayout
+  locale="en"
+  title="Page not found"
+  description="The requested C2Go page was not found."
+>
+  <main id="main-content" class="not-found">
+    <p>404</p>
+    <h1>That symbol was not found.</h1>
+    <span>没有找到这个页面。它可能已被移动，或者从未导出。</span>
+    <div>
+      <a class="button primary" href="/en/">English home</a><a
+        class="button secondary"
+        href="/zh-cn/">中文首页</a
+      >
+    </div>
+  </main>
+</BaseLayout>

@@ -1,0 +1,33 @@
+---
+import { docsNavigation, docsPath, type Locale } from "@/data/navigation";
+
+interface Props {
+  locale: Locale;
+  currentSlug: string;
+}
+const { locale, currentSlug } = Astro.props;
+---
+
+<aside class="docs-sidebar" id="docs-sidebar">
+  <nav aria-label={locale === "zh-cn" ? "文档章节" : "Documentation sections"}>
+    {
+      docsNavigation.map((section) => (
+        <section>
+          <h2>{section.title[locale]}</h2>
+          <ul>
+            {section.items.map((item) => (
+              <li>
+                <a
+                  href={docsPath(locale, item.slug)}
+                  aria-current={item.slug === currentSlug ? "page" : undefined}
+                >
+                  {item.title[locale]}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))
+    }
+  </nav>
+</aside>

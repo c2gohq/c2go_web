@@ -1,0 +1,76 @@
+---
+title: Call Go from C
+description: Bind C declarations to Go symbols and model Go multi-value returns.
+locale: en
+section: interop
+order: 8
+release: v0.20260729.0-rc.5
+sourceLinks:
+  - label: c2go_linkname reference
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#43-call-go-functions-c2go_linkname
+---
+
+`c2go_linkname` binds a C declaration to a named Go symbol. The C signature is the compiler's ABI description of that Go function, so it must match exactly.
+
+## Bind a normal Go function
+
+Suppose package `example.com/mathx` contains:
+
+```go
+package mathx
+
+func Double(value int) int { return value * 2 }
+```
+
+Declare and call it from C:
+
+```c
+#include <c2go.h>
+
+extern int go_double(int)
+    c2go_linkname("example.com/mathx.Double");
+
+c2go_extern int answer(void) {
+    return go_double(21);
+}
+```
+
+For an ordinary Go function, omit the optional ABI selector. C2Go creates an alias and wrapper that bridge to the Go internal ABI.
+
+## Bind an existing ABI0 symbol
+
+Use `C2GO_GOABI0` only when the target already exposes a Go ABI0 entry point:
+
+```c
+extern void *runtime_alloc(const void *, __c2go_intptr)
+    c2go_linkname("github.com/c2gohq/c2go_libc.GCMalloc", C2GO_GOABI0);
+```
+
+This selector requests a direct reference rather than a generated internal-ABI bridge. It is not a general performance switch.
+
+## Receive multiple Go results
+
+Describe one Go result slot per C struct field:
+
+```c
+struct DivMod {
+    int quotient;
+    int remainder;
+};
+
+extern struct DivMod go_divmod(int, int)
+    c2go_linkname("example.com/mathx.DivMod")
+    c2go_returntype(struct DivMod);
+```
+
+The fields become independent Go ABI result slots; C2Go does not pass a hidden `sret` pointer. Every field must fit one supported slot: a scalar, pointer, floating-point value, or supported C2Go aggregate.
+
+## Functions and variables
+
+`c2go_linkname` can bind both functions and variables. In either case, the full Go symbol name is a build contract. Refactoring the Go package or symbol without updating the C declaration produces a link failure.
+
+## Current boundary
+
+Pre-generated `<go/*.h>` headers exist in the compiler source tree but are not currently built or installed as SDK resource headers. Do not rely on `#include <go/math.h>` or similar paths. Declare required symbols explicitly with `c2go_linkname`.
+
+For C ABI libraries rather than Go symbols, use [native library imports](/en/docs/native-libraries/).

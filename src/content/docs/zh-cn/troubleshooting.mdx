@@ -1,0 +1,74 @@
+---
+title: 故障排查
+description: 分离编译器、binder、Go ABI、runtime 与平台问题，逐层定位失败。
+locale: zh-cn
+section: build
+order: 16
+release: v0.20260729.0-rc.5
+sourceLinks:
+  - label: 已知限制
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#8-已知限制与约束
+  - label: c2go-bind 环境要求
+    url: https://github.com/c2gohq/c2go_bind/blob/v0.20260729.0-rc.5/README.zh-CN.md#环境要求
+---
+
+首先确定失败发生在哪个阶段。compiler diagnostic、manifest validation error、Go build error 和 runtime crash 需要不同证据，不应把整条管线当成一个黑盒调试。
+
+## 找不到头文件或声明不正确
+
+**现象：**找不到 `c2go.h` 或 libc 声明，或者错误选择了宿主系统 libc header。
+
+使用 SDK 中的 `c2go-clang`，并保持 SDK 目录结构完整。不要加入 host libc include path。`c2go.h` 应只存在于 Clang resource tree，顶层 `include/` 属于 c2go-libc。
+
+```sh
+c2go-clang -print-resource-dir
+c2go-clang --target="$C2GO_TARGET" -fc2go -E -v input.c
+```
+
+## Manifest 与汇编不一致
+
+**现象：**`c2go-bind` 报告 target、version、epoch、symbol、type 或 callback 冲突。
+
+删除陈旧生成输入，同时重建 `.s` 与 JSON manifest。检查 `-fc2go-package` 与 `--pkg` 相同，并且不要在共享 build directory 中让多个 target 复用输出文件名。
+
+## Go 兼容性探测失败
+
+binder 会检查当前 Go 工具链的 frame-accounting contract。应使用协同版本要求的 Go，目前是 Go 1.25.x。不要把 `--skip-go-probe` 变成永久 workaround；它只用于受控诊断。
+
+```sh
+go version
+c2go-bind --version
+```
+
+## Managed/unmanaged 诊断
+
+managed-to-unmanaged call、store 或 return warning 表示丢失精确 GC 跟踪。应追踪指针分配与所有权，而不是把它转换成整数。cross-type layout 或 unmanaged record 含 managed field 的 error 则必须修改数据表示。
+
+迁移 warning 审核完成后，CI 中建议启用 `-Werror=c2go-managed-as1`。
+
+## 无法解析原生符号
+
+确认声明是 `unmanaged extern`、符号确实被引用，且 binder 收到正确的 `-l` 与 `-L`。检查动态库架构与 target 是否一致；Windows 还要核对精确导出符号拼写。
+
+## Callback 只在某个平台失败
+
+将签名与兼容矩阵对照。Windows callback 会有意拒绝浮点和部分 record 形状。可以把 callback 简化为指针/整数参数，或者提供 ABI 明确且经过测试的 native shim。
+
+## Runtime fault
+
+保留精确的生成 `.go`、`.s`、manifest、工具版本、target triple 和 Go stack trace。把问题缩减到最小函数，并分别使用 `-O0` 与 `-O2` 复现。只在一个优化级别失败是重要 compiler evidence，不应在没有回归测试的情况下静默发布另一个级别。
+
+检查 pointer ownership、stack-address escape、inline assembly clobber 和跨 native boundary 的调用。compiler test 通过不能替代使用生成 package 的端到端 `go test`。
+
+## 有效的问题报告
+
+报告问题时至少包含：
+
+1. 缩减后的最小 C 源码；
+2. 完整 compiler 与 binder 命令；
+3. target triple 与 `go version`；
+4. `c2go-clang`、`c2go-lto`、`c2go-bind` 和 c2go-libc 版本；
+5. 生成 manifest 与相关汇编片段；
+6. 完整 diagnostic 或 Go stack trace。
+
+再分发 package 或 SDK 前，请查看[授权边界](/zh-cn/docs/licensing/)。

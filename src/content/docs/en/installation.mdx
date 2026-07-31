@@ -1,0 +1,91 @@
+---
+title: Install the SDK
+description: Download, verify, and configure the coordinated C2Go SDK and runtime module.
+locale: en
+section: start
+order: 2
+release: v0.20260729.0-rc.5
+sourceLinks:
+  - label: SDK README
+    url: https://github.com/c2gohq/c2go_toolchain/blob/v0.20260729.0-rc.5/SDK-README.md
+  - label: Release assets
+    url: https://github.com/c2gohq/c2go_toolchain/releases/tag/v0.20260729.0-rc.5
+---
+
+The release archive is a relocatable native SDK. It contains the three command-line tools, C2Go headers, Clang runtime resources, and the license records required for redistribution. It does not contain repository checkouts or source trees.
+
+## Requirements
+
+- Go **1.25.x**. Go 1.26 and later are outside this release's ABI window.
+- The archive matching the OS and architecture of the machine that will run the tools.
+- A Go module that pins `github.com/c2gohq/c2go_libc` to `v0.20260729.0-rc.5`.
+
+## Choose an archive
+
+| Host archive    | C2Go target triple            |
+| --------------- | ----------------------------- |
+| `linux-amd64`   | `x86_64-unknown-linux-goabi`  |
+| `linux-arm64`   | `aarch64-unknown-linux-goabi` |
+| `windows-amd64` | `x86_64-pc-windows-goabi`     |
+| `macos-arm64`   | `aarch64-apple-darwin`        |
+
+Download the archive and its `.sha256` sidecar from the [release page](https://github.com/c2gohq/c2go_toolchain/releases/tag/v0.20260729.0-rc.5). The combined checksum file can be checked with:
+
+```sh
+sha256sum --check SHA256SUMS
+```
+
+Do not skip verification: this release is not signed.
+
+## Configure your shell
+
+Extract the archive, then keep its `bin/`, `include/`, and `lib/` directories together:
+
+```sh
+export C2GO_HOME=/absolute/path/to/c2go-toolchain-v0.20260729.0-rc.5-<target>
+export PATH="$C2GO_HOME/bin:$PATH"
+
+c2go-clang --version
+c2go-lto --version
+c2go-bind --version
+```
+
+In `-fc2go` mode, `c2go-clang` discovers both the top-level c2go-libc headers and its Clang resource directory automatically. Do **not** add a host libc include directory.
+
+`c2go.h` belongs to the Clang resource tree at `lib/clang/<version>/include/c2go.h`. The SDK's top-level `include/` directory contains the tracked public c2go-libc headers.
+
+## Pin the runtime module
+
+Inside your project:
+
+```sh
+go mod init example.com/demo
+go get github.com/c2gohq/c2go_libc@v0.20260729.0-rc.5
+```
+
+The Go runtime package is distributed as a module rather than a precompiled archive because Go package archives depend on the exact Go version, dependency build IDs, and build settings.
+
+## macOS quarantine
+
+The macOS archive is not notarized. After verifying the checksum, remove Gatekeeper quarantine only if macOS blocks the extracted tools:
+
+```sh
+xattr -dr com.apple.quarantine "$C2GO_HOME"
+```
+
+Do not apply this command to a broader directory.
+
+## Confirm the layout
+
+The SDK root should contain:
+
+```text
+bin/                     c2go-clang, c2go-lto, c2go-bind
+include/                 c2go-libc public headers
+lib/clang/<version>/     Clang resources, including c2go.h
+licenses/                component and third-party notices
+BUILD-INFO.json          exact build and checksum metadata
+toolchain.lock.json      coordinated source snapshot
+```
+
+You are now ready to build [Hello World](/en/docs/hello-world/).

@@ -1,0 +1,55 @@
+---
+title: 开源协议
+description: 理解网站、编译器、binder、libc、生成支持代码与 C2Go 品牌各自独立的授权边界。
+locale: zh-cn
+section: build
+order: 17
+release: v0.20260729.0-rc.5
+sourceLinks:
+  - label: 工具链授权边界
+    url: https://github.com/c2gohq/c2go_toolchain/blob/v0.20260729.0-rc.5/LICENSING.zh-CN.md
+  - label: 商业授权说明
+    url: https://github.com/c2gohq/c2go_toolchain/blob/v0.20260729.0-rc.5/COMMERCIAL-LICENSING.zh-CN.md
+  - label: 商标政策
+    url: https://github.com/c2gohq/c2go_toolchain/blob/v0.20260729.0-rc.5/TRADEMARKS.md
+---
+
+C2Go 是由多个版权和开源协议边界组成的协同工具链。下载一个聚合压缩包，并不会让其中每个文件自动变成采用同一种协议的作品。
+
+## 组件协议
+
+| 组件                | 主要条款                                                        |
+| ------------------- | --------------------------------------------------------------- |
+| c2go-clang          | `Apache-2.0 WITH LLVM-exception`，以及逐文件上游条款            |
+| c2go-bind 原创部分  | `AGPL-3.0-only` 或另行商业授权                                  |
+| c2go-libc           | C2Go 原创、musl-derived、Go/PureGo-derived 与平台材料的混合作品 |
+| musl fork           | musl MIT 条款和逐文件声明                                       |
+| c2go-toolchain 仓库 | 原创协调脚本/文档适用其 AGPL 条款，品牌和第三方材料除外         |
+
+再分发某个 SDK 时，应阅读该精确压缩包中的根授权文档与 `licenses/` 目录。
+
+## 用户源码与生成产物
+
+使用编译器本身不会转移 C 输入的所有权。但生成 package 可能包含从 c2go-bind 复制的大量支持代码，以及来自第三方的改编部分；这些保留部分继续适用自己的协议。
+
+正常 `c2go-bind` 生成会在目标目录写入 `C2GO-GENERATED-LICENSING.txt` 与相关协议文本。再分发生成 package 时应一并保留。
+
+## 商业授权
+
+适用的 C2Go 权利人可以针对自己控制的权利另行授予商业条款，但商业协议不能重新授权 LLVM、musl、Go、PureGo、平台 SDK 材料、用户代码或其他第三方作品。
+
+GitHub Sponsors 可以在另行签署的协议中被指定为付款渠道。赞助付款、收据或档位选择本身不会自动授予商业软件权利。
+
+## 网站与文档
+
+本网站仓库的原创程序代码采用 `AGPL-3.0-only` 或另行商业授权；`src/content/docs/` 下原创文档采用 `CC BY-SA 4.0` 或另行商业授权。引用代码、上游事实、链接材料和第三方资产继续保留各自条款。
+
+以仓库中的 `LICENSING.md`、`LICENSE`、`LICENSE-DOCS` 和 `NOTICE` 为准。
+
+## 名称与 Logo
+
+C2Go、c2gohq 名称、C2Go Logo 及相关视觉形象属于品牌，而不是软件源码。它们出现在仓库中，不代表被纳入 AGPL 或文档协议授权。
+
+商标政策允许真实、不会造成混淆的项目指称。修改后的 fork 应使用可区分的品牌，不得暗示不存在的官方身份、赞助或背书。
+
+本页解释项目结构，不构成法律意见。签订商业协议时，应在独立文件中明确许可方、被许可方、软件版本或 commit、具体权利、地域、期限、付款与第三方排除项。

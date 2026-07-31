@@ -1,0 +1,12 @@
+---
+import HomePage from "@/components/HomePage.astro";
+import type { Locale } from "@/data/navigation";
+
+export function getStaticPaths() {
+  return [{ params: { locale: "en" } }, { params: { locale: "zh-cn" } }];
+}
+
+const locale = Astro.params.locale as Locale;
+---
+
+<HomePage locale={locale} />

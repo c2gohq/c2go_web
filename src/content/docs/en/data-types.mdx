@@ -1,0 +1,77 @@
+---
+title: Data types and errno
+description: Use Go-compatible aggregate layouts, variants, and per-goroutine errno.
+locale: en
+section: interop
+order: 11
+release: v0.20260729.0-rc.5
+sourceLinks:
+  - label: Built-in aggregate types
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#48-go-built-in-aggregate-types
+---
+
+C2Go defines C representations for a small set of Go aggregate values. On 64-bit targets these layouts can cross the boundary by value.
+
+## Built-in aggregates
+
+| C type        | Go value  | 64-bit layout               |
+| ------------- | --------- | --------------------------- |
+| `c2go_slice`  | `[]T`     | data, length, capacity      |
+| `c2go_string` | `string`  | data, length                |
+| `c2go_iface`  | interface | table, data                 |
+| `c2go_error`  | `error`   | same two words as interface |
+
+`__c2go_intptr` is the pointer-width signed Go `int` used in these definitions.
+
+These values describe ABI layout, not the full Go language. In particular, C2Go rejects dynamic interface-method dispatch through a `c2go_iface`: there is no statically named Go ABI symbol to call.
+
+## Multi-value results
+
+Use `c2go_returntype` with a complete struct when a Go function returns multiple values:
+
+```c
+struct ReadResult {
+    c2go_slice bytes;
+    c2go_error error;
+};
+
+extern struct ReadResult go_read(c2go_string path)
+    c2go_linkname("example.com/files.Read")
+    c2go_returntype(struct ReadResult);
+```
+
+Each field maps to one Go result slot. The declaration's return type must be exactly the annotated struct.
+
+## GC-compatible unions
+
+`c2go_variant` requests a representation the Go GC can reason about:
+
+```c
+union Number {
+    int integer;
+    float real;
+} __attribute__((c2go_variant));
+```
+
+The attribute applies only to unions. Overlapping pointer members that cannot be distinguished safely are rejected; it is not a license for arbitrary pointer punning.
+
+## errno belongs to a goroutine
+
+After including `<c2go.h>`, ordinary `errno` syntax works:
+
+```c
+#include <c2go.h>
+#include <errno.h>
+
+int parse_positive(int value) {
+    if (value < 0) {
+        errno = EINVAL;
+        return -1;
+    }
+    return value;
+}
+```
+
+C2Go resolves it through `__c2go_errno_ptr()`, giving each goroutine its own logical errno state rather than sharing a single process-global integer.
+
+For project-scale output, continue with [multi-file projects and LTO](/en/docs/multi-file-lto/).

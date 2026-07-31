@@ -1,0 +1,91 @@
+---
+title: 安装 SDK
+description: 下载、校验并配置协同版本的 C2Go SDK 与 runtime module。
+locale: zh-cn
+section: start
+order: 2
+release: v0.20260729.0-rc.5
+sourceLinks:
+  - label: SDK 中文说明
+    url: https://github.com/c2gohq/c2go_toolchain/blob/v0.20260729.0-rc.5/SDK-README.zh-CN.md
+  - label: Release 资产
+    url: https://github.com/c2gohq/c2go_toolchain/releases/tag/v0.20260729.0-rc.5
+---
+
+Release 压缩包是可以整体移动的原生 SDK，包含三个命令行工具、C2Go 头文件、Clang runtime resource，以及再分发所需的授权记录。它不包含仓库 checkout 或源码树。
+
+## 环境要求
+
+- Go **1.25.x**。Go 1.26 及更高版本不在当前 ABI 窗口内。
+- 与运行工具的机器 OS 和架构匹配的平台包。
+- Go module 将 `github.com/c2gohq/c2go_libc` 固定为 `v0.20260729.0-rc.5`。
+
+## 选择平台包
+
+| 宿主平台包      | C2Go target triple            |
+| --------------- | ----------------------------- |
+| `linux-amd64`   | `x86_64-unknown-linux-goabi`  |
+| `linux-arm64`   | `aarch64-unknown-linux-goabi` |
+| `windows-amd64` | `x86_64-pc-windows-goabi`     |
+| `macos-arm64`   | `aarch64-apple-darwin`        |
+
+从 [Release 页面](https://github.com/c2gohq/c2go_toolchain/releases/tag/v0.20260729.0-rc.5)下载压缩包及对应 `.sha256` 文件。可以用汇总文件统一校验：
+
+```sh
+sha256sum --check SHA256SUMS
+```
+
+当前版本尚未签名，因此不要跳过校验。
+
+## 配置 shell
+
+解压后让 `bin/`、`include/` 与 `lib/` 始终位于同一个 SDK 根目录：
+
+```sh
+export C2GO_HOME=/absolute/path/to/c2go-toolchain-v0.20260729.0-rc.5-<target>
+export PATH="$C2GO_HOME/bin:$PATH"
+
+c2go-clang --version
+c2go-lto --version
+c2go-bind --version
+```
+
+在 `-fc2go` 模式下，`c2go-clang` 会自动发现顶层 c2go-libc 头文件和自己的 Clang resource 目录。**不要**额外加入宿主系统 libc 的 include 目录。
+
+`c2go.h` 属于 `lib/clang/<version>/include/c2go.h` 下的 Clang resource。SDK 顶层 `include/` 只保存 c2go-libc 跟踪的公共头文件。
+
+## 固定 runtime module
+
+在项目目录中执行：
+
+```sh
+go mod init example.com/demo
+go get github.com/c2gohq/c2go_libc@v0.20260729.0-rc.5
+```
+
+Go runtime package 通过 module 而不是预编译 archive 分发，因为 Go package archive 会绑定精确的 Go 版本、依赖 build ID 和构建参数。
+
+## macOS quarantine
+
+macOS 压缩包还没有 notarize。完成 SHA-256 校验后，如果 Gatekeeper 阻止工具运行，只对解压后的 SDK 目录移除 quarantine：
+
+```sh
+xattr -dr com.apple.quarantine "$C2GO_HOME"
+```
+
+不要把这个命令应用到更大的目录。
+
+## 检查目录结构
+
+SDK 根目录应包含：
+
+```text
+bin/                     c2go-clang、c2go-lto、c2go-bind
+include/                 c2go-libc 公共头文件
+lib/clang/<version>/     Clang resource，包含 c2go.h
+licenses/                组件和第三方授权记录
+BUILD-INFO.json          精确构建信息与校验值
+toolchain.lock.json      协同源码快照
+```
+
+接下来可以构建 [Hello World](/zh-cn/docs/hello-world/)。

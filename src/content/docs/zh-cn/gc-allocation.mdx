@@ -1,0 +1,78 @@
+---
+title: GC 感知分配
+description: 在 Go heap 上分配带类型的 C 对象，并保留准确的指针布局。
+locale: zh-cn
+section: concepts
+order: 6
+release: v0.20260729.0-rc.5
+sourceLinks:
+  - label: GC 分配与类型信息
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#41-gc-分配
+  - label: c2go-libc 仓库
+    url: https://github.com/c2gohq/c2go_libc
+---
+
+`gc_malloc` 会在 Go heap 上分配清零内存。与普通 C 分配不同，它接收 runtime 类型信息，让垃圾回收器知道哪些机器字保存着指针。
+
+## 分配一个 record
+
+```c
+#include <c2go.h>
+
+managed struct Node {
+    struct Node *next;
+    int value;
+};
+
+struct Node *new_node(int value) {
+    struct Node *node = gc_malloc(
+        c2go_typeinfo(struct Node),
+        sizeof(struct Node)
+    );
+    node->value = value;
+    return node;
+}
+```
+
+`c2go_typeinfo(struct Node)` 是通过宏公开的编译器 builtin，返回这个具名 managed record 对应的 Go runtime 类型描述符。无需手写或注册 pointer bitmap。
+
+它没有对应的 `free`；对象不可达后由 Go GC 回收。
+
+## 分配数组
+
+当每个元素都需要重复相同指针元数据时，使用 `gc_malloc_array`：
+
+```c
+struct Node *nodes = gc_malloc_array(
+    c2go_typeinfo(struct Node),
+    sizeof(struct Node),
+    count
+);
+```
+
+runtime 会在整块内存中重复元素的 pointer bitmap，类似为 Go slice 分配 backing array。
+
+## 分配不含指针的 blob
+
+把 `NULL` 作为类型信息会得到 GC 不扫描指针的内存：
+
+```c
+unsigned char *bytes = gc_malloc(NULL, byte_count);
+```
+
+只有确认其中永远不会保存 managed 指针时才能这样做。把 managed 指针隐藏在 blob 中，可能让被引用对象在 GC 看来已经不可达。
+
+## 不要混用所有权模型
+
+| allocator                       | 世界             | 释放方式 |
+| ------------------------------- | ---------------- | -------- |
+| `gc_malloc` / `gc_malloc_array` | managed Go heap  | 自动 GC  |
+| `malloc` / `calloc` / `realloc` | unmanaged C heap | `free`   |
+
+不要对 Go heap 指针调用 `free`，也不要假设原生库可以无限期保存 managed 指针。如果原生 API 接管所有权，应分配 native storage 并复制数据，或设计明确的 handle 边界。
+
+## 类型信息限制
+
+`c2go_typeinfo` 要求具名且完整的 record 类型。匿名 record 和保留的 runtime 标识符会被拒绝。Managed record 使用与 Go 兼容的布局规则，因此不能使用 packed layout 或逐字段 alignment 覆盖。
+
+下一章在[将 C 导出给 Go](/zh-cn/docs/export-c/)中把 managed C 函数与 record 变成 Go API。

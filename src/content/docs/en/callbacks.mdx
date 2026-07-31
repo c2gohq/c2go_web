@@ -1,0 +1,68 @@
+---
+title: Callbacks
+description: Safely move function pointers between C2Go code and native C APIs.
+locale: en
+section: interop
+order: 10
+release: v0.20260729.0-rc.5
+sourceLinks:
+  - label: Callback and callout model
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#45-callbacks-into-c-c2go_callback
+---
+
+A C2Go function cannot be handed directly to native code: native callers do not know how to enter the Go runtime. `c2go_callback` creates the required native-callable trampoline.
+
+## Pass a C2Go callback to native code
+
+```c
+#include <c2go.h>
+
+static int compare_ints(const void *left, const void *right) {
+    int a = *(const int *)left;
+    int b = *(const int *)right;
+    return (a > b) - (a < b);
+}
+
+void sort_values(void *base, size_t count) {
+    qsort(base, count, sizeof(int), c2go_callback(compare_ints));
+}
+```
+
+The trampoline permits a callback arriving on an external thread to enter the Go world through the runtime callback path. A `static` function is valid; referencing it through `c2go_callback` forces emission.
+
+Passing bare `compare_ints` to a host callback parameter is rejected.
+
+## Obtain a C2Go-callable host function pointer
+
+`c2go_callout` is the opposite direction:
+
+```c
+unmanaged extern int host_compare(const void *, const void *);
+
+int (*compare)(const void *, const void *) = c2go_callout(host_compare);
+int result = compare(left, right);
+```
+
+For scalar, pointer, and floating-point signatures, the result behaves like an ordinary function pointer. Record-by-value and variadic signatures can carry an imported stack ABI; use `__typeof__(c2go_callout(host_compare))` when the exact pointer type matters.
+
+## Obtain a raw host address
+
+Taking `&host_compare` returns the raw native function address. It is meant to be passed back to a native API:
+
+```c
+unmanaged extern void host_register(int (*callback)(int, int));
+unmanaged extern int host_add(int, int);
+
+host_register(&host_add);                 // raw host function
+host_register(c2go_callback(my_add));     // wrapped C2Go function
+```
+
+Do not call `&host_add` directly from C2Go. Use the named import or `c2go_callout` for that direction.
+
+## Platform limits
+
+Unix callback support covers scalar, pointer, floating-point, and selected small-record shapes. Windows uses `syscall.NewCallback`; floating-point callbacks and several record return shapes fail closed. Treat each callback signature as part of your platform compatibility matrix.
+
+Callbacks are for calls that really originate outside managed execution. Do not use a callback trampoline as a general replacement for an ordinary C2Go function call.
+
+Next, review the [cross-boundary data types](/en/docs/data-types/) available to these APIs.

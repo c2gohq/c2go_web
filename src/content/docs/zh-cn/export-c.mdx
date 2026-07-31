@@ -1,0 +1,71 @@
+---
+title: 将 C 导出给 Go
+description: 把已定义的 C 函数和 managed record 暴露为生成的 Go API。
+locale: zh-cn
+section: concepts
+order: 7
+release: v0.20260729.0-rc.5
+sourceLinks:
+  - label: 导出 C 函数与 struct
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#46-把-c-导出给-go
+---
+
+`c2go_extern` 会通过生成的 package 导出一个**已经定义的** C 函数。Managed record 元数据则让 `c2go-bind` 暴露与之匹配的 Go 可见布局。
+
+## 导出函数
+
+```c
+#include <c2go.h>
+
+c2go_extern long sum(const long *values, long count) {
+    long total = 0;
+    for (long i = 0; i < count; ++i) {
+        total += values[i];
+    }
+    return total;
+}
+```
+
+默认 Go 导出名会把 C 名称的第一个字符大写：`sum` 变为 `Sum`。package path 由 `-fc2go-package` 和 `c2go-bind --pkg` 共同指定。
+
+只有现有契约确实要求保持拼写时，才使用带 `C2GO_KEEPCASE` 的原始属性形式：
+
+```c
+__attribute__((c2go_extern(C2GO_KEEPCASE)))
+int ParseID(const char *text) { /* ... */ }
+```
+
+声明与定义必须一致。应在第一次声明上写 `c2go_extern`；只在后续 redeclaration 中补上会被拒绝。
+
+## 导出 managed record
+
+```c
+managed struct Point {
+    double x;
+    double y;
+};
+
+c2go_extern struct Point translate(
+    struct Point point,
+    double dx,
+    double dy
+) {
+    point.x += dx;
+    point.y += dy;
+    return point;
+}
+```
+
+manifest 会记录 size、字段 offset 和 pointer layout。`c2go-bind` 根据这些事实生成 Go 兼容类型，而不是从宿主编译器默认值猜测。
+
+Managed record 不能 packed，也不能覆盖单个字段的 alignment，因为 Go 契约中没有对应布局。
+
+## Go 保留名称
+
+导出的 `init` 或 `main` 函数不能保留小写名。这些名称在 Go 中具有语言级语义，因此 C2Go 会拒绝可能产生冲突的导出。
+
+## 保持生成 package 完整
+
+除了表面可见的声明，生成文件还包括 ABI/版本 guard，并可能包含 runtime import、GC metadata 或 native-call glue。不要只复制看起来像公共 API 的 `.go` 文件；应完整保留整个生成目录及其授权记录。
+
+反向操作——声明并调用已有 Go 符号——见[从 C 调用 Go](/zh-cn/docs/call-go/)。

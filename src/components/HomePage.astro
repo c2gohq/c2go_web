@@ -1,0 +1,339 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import Icon from "./Icon.astro";
+import { docsPath, type Locale } from "@/data/navigation";
+import { release } from "@/data/release";
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const cn = locale === "zh-cn";
+
+const copy = cn
+  ? {
+      title: "把 C 带入 Go runtime。",
+      description:
+        "基于 LLVM 将 C 编译成 Go package，输出 Plan 9 汇编，并由运行时感知的 libc 衔接两种语言。",
+      start: "开始使用",
+      github: "查看 GitHub",
+      how: "它如何工作",
+      howIntro:
+        "一条透明、可检查的构建管线。每个阶段都有明确产物，没有隐藏的运行时编译。",
+      gcTitle: "Go GC 感知的内存分配",
+      gcBody:
+        "managed C 代码通过 c2go-libc 使用 Go GC 分配。指针布局由类型信息描述，使对象可以安全地参与 Go 的垃圾回收。",
+      callGoTitle: "从 C 调用 Go",
+      callGoBody:
+        "用 c2go_linkname 声明 Go 符号，让 C 代码直接调用 Go 函数，并由编译器保持 ABI 边界一致。",
+      nativeTitle: "调用原生库",
+      nativeBody:
+        "通过 unmanaged extern 导入系统或第三方 C ABI；链接参数由 c2go-bind 记录并带入最终 Go package。",
+      callbackTitle: "跨越边界的回调",
+      callbackBody:
+        "将 managed C 函数包装成原生函数指针，或显式导入原始地址，用于真实 C 回调接口。",
+      minutes: "几分钟完成 C → Go",
+      install: "安装",
+      installBody:
+        "下载与当前宿主平台匹配的 SDK，并固定配套的 c2go-libc 版本。",
+      compile: "编译",
+      compileBody: "c2go-clang 生成 Plan 9 汇编和 JSON manifest。",
+      build: "绑定",
+      buildBody: "c2go-bind 将产物组装成普通 Go package。",
+      platforms: "当前 SDK 平台",
+      platformNote: "候选版本；二进制尚未签名，API 和 ABI 仍可能调整。",
+      final: "从 Hello World 开始",
+      finalBody:
+        "从一个 C 加法函数开始，逐步理解 managed 内存、互操作和多文件构建。",
+      cInput: "C 输入",
+      goOutput: "Go 调用",
+      runtime: "提供 C runtime 与 Go runtime 的兼容层",
+    }
+  : {
+      title: "Bring C into the Go runtime.",
+      description:
+        "Compile C into Go packages with LLVM, Plan 9 assembly, and a runtime-aware libc that connects both languages.",
+      start: "Get started",
+      github: "View on GitHub",
+      how: "How it works",
+      howIntro:
+        "A transparent, inspectable build pipeline. Every stage has an explicit artifact and there is no hidden runtime compilation.",
+      gcTitle: "Go GC-aware allocation",
+      gcBody:
+        "Managed C code allocates through c2go-libc and the Go GC. Type information describes pointer layouts so objects participate safely in Go garbage collection.",
+      callGoTitle: "Call Go from C",
+      callGoBody:
+        "Declare Go symbols with c2go_linkname, call them directly from C, and let the compiler preserve the ABI boundary.",
+      nativeTitle: "Call native libraries",
+      nativeBody:
+        "Import system or third-party C ABIs with unmanaged extern. c2go-bind records linker inputs in the final Go package.",
+      callbackTitle: "Callbacks across the boundary",
+      callbackBody:
+        "Wrap managed C functions as native function pointers or explicitly import raw addresses for real C callback APIs.",
+      minutes: "From C to Go in minutes",
+      install: "Install",
+      installBody:
+        "Download the SDK for your host and pin the matching c2go-libc version.",
+      compile: "Compile",
+      compileBody: "c2go-clang emits Plan 9 assembly and a JSON manifest.",
+      build: "Bind",
+      buildBody: "c2go-bind assembles the artifacts into a normal Go package.",
+      platforms: "Current SDK platforms",
+      platformNote:
+        "Release candidate; binaries are unsigned and APIs and ABI details may still change.",
+      final: "Start with Hello World",
+      finalBody:
+        "Begin with one C addition function, then learn managed memory, interop, and multi-file builds.",
+      cInput: "C input",
+      goOutput: "Go call",
+      runtime: "C runtime compatibility for the Go runtime environment",
+    };
+
+const stages = [
+  {
+    icon: "gear" as const,
+    title: "c2go-clang",
+    body: cn
+      ? "解析 C，并输出 Plan 9 汇编与 manifest。"
+      : "Parses C and emits Plan 9 assembly plus a manifest.",
+  },
+  {
+    icon: "file" as const,
+    title: "Plan 9 + JSON",
+    body: cn
+      ? "稳定的汇编 IR 与类型、符号、链接元数据。"
+      : "Stable assembly IR with type, symbol, and linker metadata.",
+  },
+  {
+    icon: "link" as const,
+    title: "c2go-bind",
+    body: cn
+      ? "读取产物，生成 Go 声明、胶水和汇编。"
+      : "Reads artifacts and generates Go declarations, glue, and assembly.",
+  },
+  {
+    icon: "box" as const,
+    title: "Go package",
+    body: cn
+      ? "像普通 Go package 一样导入和测试。"
+      : "Import and test it like a normal Go package.",
+  },
+];
+---
+
+<BaseLayout locale={locale} title="C2Go" description={copy.description}>
+  <main id="main-content" class="home-main">
+    <section class="hero">
+      <div class="hero-inner">
+        <div class="hero-copy">
+          <h1>{copy.title}</h1>
+          <p>{copy.description}</p>
+          <div class="hero-actions">
+            <a class="button primary" href={docsPath(locale, "hello-world")}
+              >{copy.start}<Icon name="arrow" size={18} /></a
+            >
+            <a
+              class="button secondary"
+              href="https://github.com/c2gohq/c2go_toolchain"
+              >{copy.github}<Icon name="external" size={16} /></a
+            >
+          </div>
+        </div>
+        <div class="hero-diagram" aria-label="C2Go compilation pipeline">
+          <div class="hero-stage-row">
+            <div class="diagram-node">
+              <Icon name="file" size={28} /><strong>C source</strong>
+            </div>
+            <span class="flow-arrow">→</span>
+            <div class="diagram-node active">
+              <Icon name="gear" size={28} /><strong>c2go-clang</strong>
+            </div>
+            <span class="flow-arrow">→</span>
+            <div class="diagram-node">
+              <Icon name="file" size={28} /><strong>Plan 9 + JSON</strong>
+            </div>
+            <span class="flow-arrow">→</span>
+            <div class="diagram-node active">
+              <Icon name="link" size={28} /><strong>c2go-bind</strong>
+            </div>
+            <span class="flow-arrow">→</span>
+            <div class="diagram-node">
+              <Icon name="box" size={28} /><strong>Go package</strong>
+            </div>
+          </div>
+          <div class="runtime-rail">
+            <Icon name="layers" size={22} /><strong>c2go-libc</strong><span
+              >{copy.runtime}</span
+            >
+          </div>
+          <div class="hero-code-pair">
+            <figure>
+              <figcaption>{copy.cInput}</figcaption>
+              <pre><code>{`#include <c2go.h>
+
+c2go_extern int add(int a, int b) {
+  return a + b;
+}`}</code></pre>
+            </figure>
+            <span class="code-arrow">→</span>
+            <figure>
+              <figcaption>{copy.goOutput}</figcaption>
+              <pre><code>{`import "example.com/demo/translated"
+
+result := translated.Add(20, 22)`}</code></pre>
+            </figure>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="pipeline-section">
+      <div class="section-heading centered">
+        <h2>{copy.how}</h2>
+        <p>{copy.howIntro}</p>
+      </div>
+      <div class="pipeline-grid">
+        {
+          stages.map((stage, index) => (
+            <div class="pipeline-stage">
+              <div class="stage-title">
+                <>
+                  <Icon name={stage.icon} size={24} />
+                  <strong>{stage.title}</strong>
+                </>
+              </div>
+              <p>{stage.body}</p>
+              {index < stages.length - 1 && <span class="stage-arrow">→</span>}
+            </div>
+          ))
+        }
+      </div>
+      <div class="pipeline-runtime">
+        <Icon name="layers" /><strong>c2go-libc</strong><span
+          >{copy.runtime}</span
+        >
+      </div>
+    </section>
+
+    <section class="feature-sections">
+      <article class="feature-row">
+        <div class="feature-copy">
+          <h2>{copy.gcTitle}</h2><p>{copy.gcBody}</p><a
+            href={docsPath(locale, "gc-allocation")}
+            >{copy.start}<Icon name="arrow" size={16} /></a
+          >
+        </div>
+        <div class="code-window">
+          <div class="window-bar">
+            <i></i><i></i><i></i><span>managed.c</span>
+          </div><pre><code>{`struct Node *node = gc_malloc(sizeof(*node));
+node->next = gc_malloc(sizeof(*node->next));
+
+// Both objects are tracked by the Go GC.`}</code></pre>
+        </div>
+      </article>
+      <article class="feature-row reverse">
+        <div class="boundary-diagram">
+          <div>
+            <small>C source</small><code>answer = go_answer(21);</code>
+          </div><span>call →</span><div>
+            <small>Go symbol</small><code>func Answer(v int) int</code>
+          </div>
+        </div>
+        <div class="feature-copy">
+          <h2>{copy.callGoTitle}</h2><p>{copy.callGoBody}</p><a
+            href={docsPath(locale, "call-go")}
+            >{copy.start}<Icon name="arrow" size={16} /></a
+          >
+        </div>
+      </article>
+      <article class="feature-row">
+        <div class="feature-copy">
+          <h2>{copy.nativeTitle}</h2><p>{copy.nativeBody}</p><a
+            href={docsPath(locale, "native-libraries")}
+            >{copy.start}<Icon name="arrow" size={16} /></a
+          >
+        </div>
+        <div class="code-window">
+          <div class="window-bar">
+            <i></i><i></i><i></i><span>native.c</span>
+          </div><pre><code>{`unmanaged extern size_t strlen(const char *);
+
+size_t name_length(const char *name) {
+  return strlen(name);
+}`}</code></pre>
+        </div>
+      </article>
+      <article class="feature-row reverse">
+        <div class="boundary-diagram callback">
+          <div>
+            <small>native API</small><code>register_cb(callback);</code>
+          </div><span>← callback</span><div>
+            <small>managed C</small><code>c2go_callback(on_value)</code>
+          </div>
+        </div>
+        <div class="feature-copy">
+          <h2>{copy.callbackTitle}</h2><p>{copy.callbackBody}</p><a
+            href={docsPath(locale, "callbacks")}
+            >{copy.start}<Icon name="arrow" size={16} /></a
+          >
+        </div>
+      </article>
+    </section>
+
+    <section class="quickstart-section">
+      <div class="section-heading centered"><h2>{copy.minutes}</h2></div>
+      <div class="quickstart-grid">
+        <article>
+          <span class="step-number">1</span><h3>{copy.install}</h3><p>
+            {copy.installBody}
+          </p><pre><code>{`export C2GO_HOME=/path/to/c2go-sdk
+export PATH="$C2GO_HOME/bin:$PATH"
+go get github.com/c2gohq/c2go_libc@${release.version}`}</code></pre>
+        </article>
+        <article>
+          <span class="step-number">2</span><h3>{copy.compile}</h3><p>
+            {copy.compileBody}
+          </p><pre><code>{`c2go-clang --target="$C2GO_TARGET" \\
+  -fc2go -fc2go-package=example.com/demo/translated \\
+  -fc2go-emit-plan9-asm=translated.s \\
+  -fc2go-emit-manifest=translated.json -c input.c`}</code></pre>
+        </article>
+        <article>
+          <span class="step-number">3</span><h3>{copy.build}</h3><p>
+            {copy.buildBody}
+          </p><pre><code>{`mkdir translated
+c2go-bind --pkg=example.com/demo/translated \\
+  --out=translated --sidecar=translated.json translated.s
+go test ./...`}</code></pre>
+        </article>
+      </div>
+    </section>
+
+    <section class="platform-section">
+      <div class="section-heading centered"><h2>{copy.platforms}</h2></div>
+      <div class="platform-list">
+        {
+          release.platforms.map((platform) => (
+            <div>
+              <>
+                <Icon name="terminal" size={27} />
+                <strong>{platform.label}</strong>
+                <span>{platform.architecture}</span>
+              </>
+            </div>
+          ))
+        }
+      </div>
+      <p class="platform-note"><span>i</span>{copy.platformNote}</p>
+    </section>
+
+    <section class="final-cta">
+      <h2>{copy.final}</h2>
+      <p>{copy.finalBody}</p>
+      <a class="button primary" href={docsPath(locale, "hello-world")}
+        >{copy.start}<Icon name="arrow" size={18} /></a
+      >
+    </section>
+  </main>
+</BaseLayout>

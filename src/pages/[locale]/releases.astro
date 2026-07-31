@@ -1,0 +1,103 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import Icon from "@/components/Icon.astro";
+import { assetUrl, release } from "@/data/release";
+import type { Locale } from "@/data/navigation";
+
+export function getStaticPaths() {
+  return [{ params: { locale: "en" } }, { params: { locale: "zh-cn" } }];
+}
+const locale = Astro.params.locale as Locale;
+const cn = locale === "zh-cn";
+---
+
+<BaseLayout
+  locale={locale}
+  title={cn ? "发布版本" : "Releases"}
+  description={cn
+    ? `下载 C2Go 工具链 ${release.version}。`
+    : `Download C2Go Toolchain ${release.version}.`}
+>
+  <main id="main-content" class="inner-page" data-pagefind-body>
+    <header class="inner-hero release-hero">
+      <p>{cn ? "当前协同版本" : "Current coordinated release"}</p>
+      <h1>{release.version}</h1>
+      <span
+        >{
+          cn
+            ? "用于评估和兼容性测试的候选版本。二进制尚未签名，也尚未面向生产环境。"
+            : "A release candidate for evaluation and compatibility testing. Binaries are unsigned and not production-ready."
+        }</span
+      >
+      <div class="release-facts">
+        <span>LLVM {release.llvmVersion}</span><span>Go {release.goRange}</span
+        ><span>ABI epoch {release.abiEpoch}</span>
+      </div>
+    </header>
+    <section class="download-section" aria-labelledby="download-heading">
+      <h2 id="download-heading">
+        {cn ? "选择宿主平台" : "Choose your host platform"}
+      </h2>
+      <div class="download-list">
+        {
+          release.platforms.map((platform) => (
+            <a href={assetUrl(platform)}>
+              <Icon name="terminal" size={25} />
+              <div>
+                <>
+                  <strong>
+                    {platform.label} / {platform.architecture}
+                  </strong>
+                  <code>{platform.triple}</code>
+                </>
+              </div>
+              <>
+                <span>.{platform.archive}</span>
+                <Icon name="download" size={19} />
+              </>
+            </a>
+          ))
+        }
+      </div>
+      <div class="checksum-note">
+        <strong>{cn ? "下载后先验证" : "Verify before extracting"}</strong>
+        <code>sha256sum --check SHA256SUMS</code>
+        <a href={`${release.releaseUrl}`}
+          >{cn ? "校验文件与源码包" : "Checksums and source archive"}<Icon
+            name="external"
+            size={15}
+          /></a
+        >
+      </div>
+    </section>
+    <section class="release-details">
+      <div>
+        <h2>{cn ? "环境要求" : "Requirements"}</h2><p>
+          {
+            cn
+              ? "Go 1.25.x。下载与运行机器 OS 和架构一致的平台包。Go module 必须固定相同版本的 c2go-libc。"
+              : "Go 1.25.x. Download the archive matching the host OS and architecture. Pin c2go-libc to the same coordinated version in your Go module."
+          }
+        </p>
+      </div>
+      <div>
+        <h2>{cn ? "签名状态" : "Signing status"}</h2><p>
+          {
+            cn
+              ? "所有二进制尚未签名。macOS 包没有 notarize，Windows 包没有 Authenticode 签名。"
+              : "All binaries are unsigned. The macOS archive is not notarized, and the Windows archive has no Authenticode signature."
+          }
+        </p>
+      </div>
+      <div>
+        <h2>{cn ? "精确快照" : "Exact snapshot"}</h2><p>
+          {
+            cn
+              ? "归档中的 BUILD-INFO.json 和 toolchain.lock.json 记录目标平台、组件 revision 与校验值。"
+              : "BUILD-INFO.json and toolchain.lock.json in each archive record its target, component revisions, and checksums."
+          }
+        </p>
+      </div>
+    </section>
+  </main>
+</BaseLayout>

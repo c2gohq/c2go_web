@@ -1,0 +1,68 @@
+---
+title: The build pipeline
+description: Follow C source through Clang, C2Go LTO, binding generation, and the Go toolchain.
+locale: en
+section: concepts
+order: 4
+release: v0.20260729.0-rc.5
+sourceLinks:
+  - label: End-to-end pipeline
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#9-end-to-end-shape
+  - label: c2go-bind inputs
+    url: https://github.com/c2gohq/c2go_bind/blob/v0.20260729.0-rc.5/README.md#where-it-fits
+---
+
+C2Go separates compilation from package generation. Understanding that split makes build failures much easier to diagnose.
+
+## Stage 1: C frontend and LLVM bitcode
+
+`c2go-clang` parses C with the C2Go language extensions enabled. The target triple controls both machine code and C data-model details—for example, `long` is 8 bytes on Linux and Darwin but 4 bytes on 64-bit Windows.
+
+When Plan 9 assembly or manifest output is requested, each source file is first compiled to LLVM bitcode. The driver then invokes the colocated `c2go-lto` tool.
+
+## Stage 2: C2Go LTO
+
+`c2go-lto` links one or more bitcode modules and runs the C2Go lowering pipeline. This is where whole-program operations such as cross-translation-unit inlining, escape auditing, Go-stack handling, GC statepoints, write barriers, ABI lowering, and final Plan 9 emission are coordinated.
+
+Even a single-source driver invocation uses this internal path when emit flags are present:
+
+```text
+cc1 → LLVM bitcode → c2go-lto → output.s + output.json
+```
+
+`-O0` and `-O2` are both supported. At `-O0`, register-ABI and leaf optimizations are disabled; `-O2` enables the performance-oriented pipeline.
+
+## Stage 3: Manifest-guided binding
+
+The assembly alone is not enough. The JSON manifest carries information the Go source generator cannot recover reliably from text assembly, including:
+
+- package and exported symbol names;
+- target `GOOS` and `GOARCH`;
+- supported Go version range and C2Go ABI epoch;
+- record layouts, fields, and GC pointer masks;
+- Go linknames and multi-value returns;
+- native imports, libraries, callbacks, and callouts.
+
+`c2go-bind` validates agreement across every input before writing files. Conflicting targets, ABI epochs, symbols, types, or callback metadata fail closed.
+
+## Stage 4: Ordinary Go build
+
+The generated directory is an ordinary Go package. It contains Go declarations, build-tagged or target-specific assembly, runtime anchors, and any required dynamic-import glue. The Go toolchain assembles and links those files together with the pinned `c2go-libc` module.
+
+There is no C compiler involved at application startup.
+
+## Keep these values coordinated
+
+| Value                                  | Why it must match                                           |
+| -------------------------------------- | ----------------------------------------------------------- |
+| `-fc2go-package` and `c2go-bind --pkg` | Both define the final Go import path and symbol namespace   |
+| assembly and manifest                  | They describe the same compiled unit                        |
+| target triple and Go build target      | Plan 9 assembly is OS/architecture-specific                 |
+| compiler, binder, and libc release     | Manifest and runtime ABI are versioned together             |
+| Go toolchain version                   | Stack-frame and ABI contracts are checked during generation |
+
+## Useful inspection points
+
+If a build fails, preserve the `.s` and `.json` pair. Check the manifest target and ABI version before debugging generated Go. Use `c2go-bind --dry-run` to inspect Go output without changing an output directory, and `c2go-lto --c2go-print-stats` when diagnosing the compiler pipeline directly.
+
+Next, learn the [managed and unmanaged](/en/docs/managed-unmanaged/) model that governs pointers across the pipeline.

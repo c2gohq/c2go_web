@@ -1,0 +1,65 @@
+---
+title: 平台与限制
+description: 区分已发布宿主 SDK 与编译器 target，并理解 fail-closed 边界。
+locale: zh-cn
+section: build
+order: 15
+release: v0.20260729.0-rc.5
+sourceLinks:
+  - label: 兼容矩阵
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#7-兼容矩阵
+  - label: 当前 release notes
+    url: https://github.com/c2gohq/c2go_toolchain/blob/v0.20260729.0-rc.5/RELEASE_NOTES/v0.20260729.0-rc.5.zh-CN.md
+---
+
+编译器实现覆盖和已发布 SDK 覆盖是不同结论。选择受支持宿主包时，应以 release asset 列表为准。
+
+## 已发布 SDK
+
+当前协同 release 发布并验证：
+
+| 宿主    | 架构  | Target triple                 |
+| ------- | ----- | ----------------------------- |
+| Linux   | amd64 | `x86_64-unknown-linux-goabi`  |
+| Linux   | arm64 | `aarch64-unknown-linux-goabi` |
+| Windows | amd64 | `x86_64-pc-windows-goabi`     |
+| macOS   | arm64 | `aarch64-apple-darwin`        |
+
+每个平台包只能在对应宿主上运行，生成产物也与 `(GOOS, GOARCH)` 绑定。
+
+## 其他 codegen 路径
+
+除 release matrix 外，编译器还包含 Darwin amd64 路径，以及演练较少的 Windows arm64 路径。这不等于这些组合已有可直接使用的 SDK，或已经通过完整 release gate。
+
+## 边界能力矩阵
+
+| 特性                       | Unix                 | Windows                |
+| -------------------------- | -------------------- | ---------------------- |
+| Go 调用：标量、浮点、指针  | 支持                 | 支持                   |
+| 导出 C 函数与 record       | 支持                 | 支持                   |
+| 原生导入：标量、指针、浮点 | 支持                 | 支持                   |
+| 原生导入：小 record 按值   | 在 ABI 限制内支持    | 按 Win64 size 规则支持 |
+| Callback：标量与指针       | 支持                 | 支持                   |
+| Callback：float 或 double  | 支持                 | fail closed            |
+| Callback：部分小 record    | 支持                 | fail closed            |
+| 多返回值                   | 支持合法单 slot 字段 | 支持合法单 slot 字段   |
+
+“Fail closed” 表示工具链会拒绝不支持的形状，而不是静默生成错误调用。
+
+## 语言硬限制
+
+- 只支持 C 和 64 位；C++ 会被拒绝。
+- 拒绝 variable-length array 与动态 `alloca`，因为可移动 Go 栈使它们的基址不健全。
+- Managed record 不能 packed，也不能覆盖单字段 alignment。
+- 不支持通过 `c2go_iface` 动态调用 interface method。
+- `c2go_variant` 不能表示有歧义的重叠 managed pointer。
+- `c2go_returntype` 的每个字段必须占据一个受支持 Go ABI result slot。
+- Callback operand 必须命名 C2Go 函数；裸 C2Go function pointer 不能传入 native callback slot。
+
+## 候选版本状态
+
+当前二进制尚未签名。macOS 压缩包没有 notarize，Windows 可执行文件没有 Authenticode 签名。Go 1.26 不在当前 ABI 窗口内。1.0 之前 interface、manifest field 与 ABI epoch 都可能变化。
+
+遇到不支持的形状时，应把边界降低为更简单的形式，例如不按值传递大 record，而是传递指向所有权明确内存的指针，并为准备发布的每个 target 添加测试。
+
+[故障排查](/zh-cn/docs/troubleshooting/)会把常见诊断映射到具体阶段。

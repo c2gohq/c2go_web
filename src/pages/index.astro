@@ -1,0 +1,29 @@
+---
+const fallback = "/en/";
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>C2Go</title>
+    <script is:inline>
+      (() => {
+        const saved = localStorage.getItem("c2go-locale");
+        const detected = navigator.languages?.some((language) =>
+          language.toLowerCase().startsWith("zh"),
+        )
+          ? "zh-cn"
+          : "en";
+        location.replace(
+          `/${saved === "zh-cn" || saved === "en" ? saved : detected}/`,
+        );
+      })();
+    </script>
+  </head>
+  <body>
+    <noscript><a href={fallback}>Continue to C2Go documentation</a></noscript>
+  </body>
+</html>

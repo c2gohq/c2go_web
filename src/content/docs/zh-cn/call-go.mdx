@@ -1,0 +1,76 @@
+---
+title: 从 C 调用 Go
+description: 将 C 声明绑定到 Go 符号，并描述 Go 多返回值。
+locale: zh-cn
+section: interop
+order: 8
+release: v0.20260729.0-rc.5
+sourceLinks:
+  - label: c2go_linkname 参考
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#43-调用-go-函数c2go_linkname
+---
+
+`c2go_linkname` 把一个 C 声明绑定到具名 Go 符号。C 签名就是编译器对该 Go 函数 ABI 的描述，因此必须精确匹配。
+
+## 绑定普通 Go 函数
+
+假设 package `example.com/mathx` 中包含：
+
+```go
+package mathx
+
+func Double(value int) int { return value * 2 }
+```
+
+在 C 中声明并调用：
+
+```c
+#include <c2go.h>
+
+extern int go_double(int)
+    c2go_linkname("example.com/mathx.Double");
+
+c2go_extern int answer(void) {
+    return go_double(21);
+}
+```
+
+对普通 Go 函数不要写可选 ABI selector。C2Go 会创建 alias 与 wrapper，桥接到 Go internal ABI。
+
+## 绑定已有 ABI0 符号
+
+只有目标已经暴露 Go ABI0 入口时才使用 `C2GO_GOABI0`：
+
+```c
+extern void *runtime_alloc(const void *, __c2go_intptr)
+    c2go_linkname("github.com/c2gohq/c2go_libc.GCMalloc", C2GO_GOABI0);
+```
+
+这个 selector 表示直接引用，而不是生成 internal-ABI bridge；它不是通用的性能开关。
+
+## 接收多个 Go 返回值
+
+用一个 C struct 字段对应一个 Go result slot：
+
+```c
+struct DivMod {
+    int quotient;
+    int remainder;
+};
+
+extern struct DivMod go_divmod(int, int)
+    c2go_linkname("example.com/mathx.DivMod")
+    c2go_returntype(struct DivMod);
+```
+
+每个字段会降低为独立 Go ABI result slot，不会传递隐藏的 `sret` 指针。每个字段都必须适合一个受支持 slot：标量、指针、浮点值或受支持的 C2Go aggregate。
+
+## 函数与变量
+
+`c2go_linkname` 同时适用于函数与变量。无论哪一种，完整 Go symbol name 都是构建契约。如果重构 Go package 或符号但没有更新 C 声明，最终会链接失败。
+
+## 当前边界
+
+编译器源码树中存在预生成 `<go/*.h>` 头文件，但它们目前没有作为 target 构建，也没有安装为 SDK resource header。不要依赖 `#include <go/math.h>` 一类路径；应通过 `c2go_linkname` 显式声明所需符号。
+
+如果目标是 C ABI 动态库而不是 Go 符号，请使用[原生库导入](/zh-cn/docs/native-libraries/)。

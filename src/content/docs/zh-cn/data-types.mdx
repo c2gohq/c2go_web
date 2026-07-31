@@ -1,0 +1,77 @@
+---
+title: 数据类型与 errno
+description: 使用与 Go 兼容的 aggregate 布局、variant 和 per-goroutine errno。
+locale: zh-cn
+section: interop
+order: 11
+release: v0.20260729.0-rc.5
+sourceLinks:
+  - label: Go 内建 aggregate 类型
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#48-go-内建聚合类型
+---
+
+C2Go 为少量 Go aggregate 值定义了 C 表示。在 64 位 target 上，这些布局可以按值跨越边界。
+
+## 内建 aggregate
+
+| C 类型        | Go 值     | 64 位布局                 |
+| ------------- | --------- | ------------------------- |
+| `c2go_slice`  | `[]T`     | data、length、capacity    |
+| `c2go_string` | `string`  | data、length              |
+| `c2go_iface`  | interface | table、data               |
+| `c2go_error`  | `error`   | 与 interface 相同的两个字 |
+
+`__c2go_intptr` 是这些定义使用的、与指针同宽的有符号 Go `int`。
+
+这些值描述 ABI 布局，不等于完整 Go 语言语义。特别是 C2Go 会拒绝通过 `c2go_iface` 动态调用 interface method，因为没有静态具名的 Go ABI symbol 可以调用。
+
+## 多返回值
+
+当 Go 函数返回多个值时，用完整 struct 配合 `c2go_returntype`：
+
+```c
+struct ReadResult {
+    c2go_slice bytes;
+    c2go_error error;
+};
+
+extern struct ReadResult go_read(c2go_string path)
+    c2go_linkname("example.com/files.Read")
+    c2go_returntype(struct ReadResult);
+```
+
+每个字段映射一个 Go result slot，函数声明的返回类型必须与注解中的 struct 完全一致。
+
+## GC 兼容 union
+
+`c2go_variant` 请求一种 Go GC 能推理的表示：
+
+```c
+union Number {
+    int integer;
+    float real;
+} __attribute__((c2go_variant));
+```
+
+该属性只适用于 union。无法安全消歧的重叠指针成员会被拒绝；它并不允许任意 pointer punning。
+
+## errno 属于 goroutine
+
+包含 `<c2go.h>` 后，普通 `errno` 语法可以继续使用：
+
+```c
+#include <c2go.h>
+#include <errno.h>
+
+int parse_positive(int value) {
+    if (value < 0) {
+        errno = EINVAL;
+        return -1;
+    }
+    return value;
+}
+```
+
+C2Go 会通过 `__c2go_errno_ptr()` 解析它，让每个 goroutine 拥有自己的逻辑 errno 状态，而不是共享一个进程级全局整数。
+
+接下来进入项目级输出：[多文件项目与 LTO](/zh-cn/docs/multi-file-lto/)。

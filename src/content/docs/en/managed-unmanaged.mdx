@@ -1,0 +1,87 @@
+---
+title: Managed and unmanaged
+description: Learn the two memory worlds C2Go uses to keep the Go garbage collector sound.
+locale: en
+section: concepts
+order: 5
+release: v0.20260729.0-rc.5
+sourceLinks:
+  - label: Managed/unmanaged model
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#3-managed--unmanaged-worlds-core-mental-model
+---
+
+Every C2Go type, object, field, parameter, and function belongs to a **managed** or **unmanaged** world. This is a compiler-checked memory contract, not just documentation.
+
+## Managed is the default
+
+Managed pointers refer to memory tracked by the Go garbage collector. Stores of managed pointers preserve precise pointer information and receive the write barriers required by the Go runtime.
+
+```c
+#include <c2go.h>
+
+managed struct Node {
+    struct Node *next;
+    int value;
+};
+```
+
+Because C2Go is managed by default, the explicit `managed` marker is most useful when documenting a public boundary.
+
+## Unmanaged represents native memory
+
+Unmanaged pointers are raw values similar to `unsafe.Pointer`. They are used for memory owned by native allocators and at external C ABI boundaries.
+
+```c
+unmanaged struct RawBuffer {
+    void *data;
+    long length;
+};
+```
+
+Ordinary `malloc`, `calloc`, `realloc`, and `free` continue to operate on an unmanaged C heap. They are not silently rewritten to Go allocation.
+
+## Set a region default
+
+Use pragmas when adapting a group of declarations:
+
+```c
+#pragma c2go unmanaged push
+struct NativeHeader { void *handle; long flags; };
+extern int native_open(struct NativeHeader *);
+#pragma c2go unmanaged pop
+```
+
+Prefer the narrowest practical region. A broad unmanaged region makes accidental loss of GC precision harder to review.
+
+## Warnings for lossy conversions
+
+Some crossings remain representable but lose precise tracking. The compiler warns when you:
+
+- pass, store, or return a managed pointer in unmanaged form;
+- convert a managed pointer to an integer; or
+- store the address of a stack local into a managed heap root.
+
+These warnings are in `-Wc2go-managed-as1`. During migration you can inspect them as warnings; for maintained code, prefer:
+
+```sh
+-Werror=c2go-managed-as1
+```
+
+Disabling the warning does not make the conversion precise.
+
+## Errors for unsound layouts
+
+C2Go rejects operations that would make the GC's view structurally wrong:
+
+- bit-casting between managed pointer types with incompatible GC layouts;
+- putting a managed field inside an unmanaged record;
+- using packed or per-field alignment overrides on managed records; and
+- ambiguous overlapping pointer fields in a managed union representation.
+
+Do not work around these errors with integer casts. Redesign the boundary: keep native storage unmanaged, or copy data into a managed representation with an explicit lifetime.
+
+## Boundary rule of thumb
+
+Use managed memory for data that lives with Go objects or survives across Go calls. Use unmanaged memory only when a native API owns the allocation or requires a native pointer representation. Make every crossing visible in declarations.
+
+Next, allocate a typed managed object with [GC-aware allocation](/en/docs/gc-allocation/).

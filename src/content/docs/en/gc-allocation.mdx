@@ -1,0 +1,78 @@
+---
+title: GC-aware allocation
+description: Allocate typed C objects on the Go heap and preserve their pointer layout.
+locale: en
+section: concepts
+order: 6
+release: v0.20260729.0-rc.5
+sourceLinks:
+  - label: GC allocation and type information
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#41-gc-allocation
+  - label: c2go-libc repository
+    url: https://github.com/c2gohq/c2go_libc
+---
+
+`gc_malloc` allocates zeroed memory on the Go heap. Unlike ordinary C allocation, it accepts runtime type information so the collector knows which machine words contain pointers.
+
+## Allocate one record
+
+```c
+#include <c2go.h>
+
+managed struct Node {
+    struct Node *next;
+    int value;
+};
+
+struct Node *new_node(int value) {
+    struct Node *node = gc_malloc(
+        c2go_typeinfo(struct Node),
+        sizeof(struct Node)
+    );
+    node->value = value;
+    return node;
+}
+```
+
+`c2go_typeinfo(struct Node)` is a compiler builtin exposed as a macro. It produces the Go runtime type descriptor for that named managed record. You do not write or register the pointer bitmap by hand.
+
+There is no matching `free`: the Go GC reclaims the object after it becomes unreachable.
+
+## Allocate an array
+
+Use `gc_malloc_array` when pointer metadata must repeat for every element:
+
+```c
+struct Node *nodes = gc_malloc_array(
+    c2go_typeinfo(struct Node),
+    sizeof(struct Node),
+    count
+);
+```
+
+The runtime repeats the element pointer bitmap across the allocation, analogous to allocating a Go slice backing array.
+
+## Allocate a pointer-free blob
+
+Passing `NULL` as type information creates memory that the GC does not scan for pointers:
+
+```c
+unsigned char *bytes = gc_malloc(NULL, byte_count);
+```
+
+Only do this when the allocation will never contain managed pointers. Hiding a managed pointer inside a blob can let the referenced object become unreachable from the GC's point of view.
+
+## Do not mix ownership models
+
+| Allocator                       | World            | Release      |
+| ------------------------------- | ---------------- | ------------ |
+| `gc_malloc` / `gc_malloc_array` | managed Go heap  | automatic GC |
+| `malloc` / `calloc` / `realloc` | unmanaged C heap | `free`       |
+
+Never call `free` on a Go-heap pointer, and do not assume a native library can retain a managed pointer indefinitely. If a native API takes ownership, allocate native storage and copy the required data, or design an explicit handle-based boundary.
+
+## Type information constraints
+
+`c2go_typeinfo` requires a named, complete record type. Anonymous records and reserved runtime identifiers are rejected. Managed record layout follows Go-compatible rules, so packed layout and field-specific alignment overrides are not available.
+
+Next, make a managed C function and record visible as a Go API in [Export C to Go](/en/docs/export-c/).

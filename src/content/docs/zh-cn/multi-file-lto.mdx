@@ -1,0 +1,80 @@
+---
+title: 多文件项目
+description: 编译多个 translation unit，使用 C2Go LTO，并安全绑定 archive。
+locale: zh-cn
+section: build
+order: 12
+release: v0.20260729.0-rc.5
+sourceLinks:
+  - label: c2go-clang 多文件模式
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#5-c2go-clang-命令行
+  - label: c2go-bind 多输入行为
+    url: https://github.com/c2gohq/c2go_bind/blob/v0.20260729.0-rc.5/README.zh-CN.md#用法
+---
+
+真实项目中，构成同一个生成 package 的所有 translation unit，必须使用一致的 package path、target、Go 版本窗口和 ABI epoch。
+
+## 一次 driver 调用
+
+最简单的多文件构建是把所有源码交给一次 `c2go-clang` 调用：
+
+```sh
+c2go-clang --target="$C2GO_TARGET" \
+  -fc2go \
+  -fc2go-package=example.com/acme/engine \
+  -O2 \
+  -fc2go-emit-plan9-asm=engine.s \
+  -fc2go-emit-manifest=engine.json \
+  parser.c runtime.c storage.c
+```
+
+driver 将每个源码编译为 bitcode，调用 `c2go-lto`，然后输出一对合并的汇编与 manifest。优化级别 2 及以上会启用跨 translation unit 内联。
+
+正常绑定合并产物：
+
+```sh
+mkdir -p engine
+c2go-bind \
+  --pkg=example.com/acme/engine \
+  --out=engine \
+  --sidecar=engine.json \
+  engine.s
+```
+
+## 直接驱动 c2go-lto
+
+高级构建系统可以先生成 bitcode，再显式调用 linker：
+
+```sh
+c2go-lto parser.bc runtime.bc storage.bc \
+  --c2go-emit-asm=engine.s \
+  --c2go-emit-manifest=engine.json
+```
+
+常用选项：
+
+| 选项                           | 用途                                             |
+| ------------------------------ | ------------------------------------------------ |
+| `--c2go-emit-archive=engine.a` | 把汇编与 manifest member 打包进一个 `ar` archive |
+| `--c2go-lto-inline=0`          | 诊断时关闭跨单元内联                             |
+| `--c2go-escape-nonfatal`       | 报告 stack-to-heap escape 但仍返回成功           |
+| `--c2go-print-stats`           | 打印管线统计                                     |
+
+退出码 `0` 表示干净，`1` 表示逃逸审计发现 stack-to-heap escape，`2` 表示工具错误。Clang driver 的普通管线会传入 nonfatal 策略。
+
+## 绑定多个输入或 archive
+
+`c2go-bind` 也可以合并多个汇编输入，或直接读取 C2Go archive：
+
+```sh
+c2go-bind --pkg=example.com/acme/engine --out=engine a.s b.s
+c2go-bind --pkg=example.com/acme/engine --out=engine engine.a
+```
+
+binder 会精确去重，并拒绝符号、类型、全局变量、linkname、GC mask、callback、target、版本或 ABI epoch 冲突。
+
+## 构建系统规则
+
+把每个 `.s` 与其 manifest 视为不可拆分的一对。cache key 必须包含 target triple、package path、优化级别和协同工具链版本。不要在未经过 `c2go-bind` 生成目标选择结构的情况下，把不同 OS 产物塞进同一个 package。
+
+需要直接使用 CPU 指令的底层代码，请继续阅读[内联汇编](/zh-cn/docs/inline-assembly/)。

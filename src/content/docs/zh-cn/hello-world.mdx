@@ -1,0 +1,111 @@
+---
+title: Hello World
+description: 将一个 C 函数编译成 Go package，并在 Go 测试中调用它。
+locale: zh-cn
+section: start
+order: 3
+release: v0.20260729.0-rc.5
+sourceLinks:
+  - label: SDK 快速开始
+    url: https://github.com/c2gohq/c2go_toolchain/blob/v0.20260729.0-rc.5/SDK-README.zh-CN.md#快速开始
+  - label: c2go-bind 用法
+    url: https://github.com/c2gohq/c2go_bind/blob/v0.20260729.0-rc.5/README.zh-CN.md#用法
+---
+
+本章会把一个 C 加法函数编译成 Go package，并在 Go 测试中调用它。开始前，请确认匹配版本的 SDK 已加入 `PATH`，并把 `C2GO_TARGET` 设置为下载平台包对应的 target triple。
+
+## 1. 创建 Go module
+
+```sh
+mkdir hello-c2go
+cd hello-c2go
+go mod init example.com/hello-c2go
+go get github.com/c2gohq/c2go_libc@v0.20260729.0-rc.5
+```
+
+设置与 SDK 匹配的 triple。以 macOS arm64 为例：
+
+```sh
+export C2GO_TARGET=aarch64-apple-darwin
+```
+
+## 2. 编写 C 函数
+
+创建 `input.c`：
+
+```c
+#include <stdint.h>
+#include <c2go.h>
+
+c2go_extern int add(int a, int b) {
+    return a + b;
+}
+```
+
+`c2go_extern` 会把一个**已经定义的** C 函数导出。默认 Go 名称会将第一个字母改为大写，因此 `add` 会生成 `Add`。
+
+## 3. 使用 c2go-clang 编译
+
+```sh
+c2go-clang --target="$C2GO_TARGET" \
+  -fc2go \
+  -fc2go-package=example.com/hello-c2go/translated \
+  -O2 \
+  -fc2go-emit-plan9-asm=translated.s \
+  -fc2go-emit-manifest=translated.json \
+  -c -o translated.o input.c
+```
+
+真正重要的输出是 `translated.s` 和 `translated.json`。`translated.o` 只是这条管线的附带产物。
+
+## 4. 生成 Go package
+
+```sh
+mkdir -p translated
+c2go-bind \
+  --pkg=example.com/hello-c2go/translated \
+  --out=translated \
+  --sidecar=translated.json \
+  translated.s
+```
+
+输出目录现在包含 Go 声明、汇编、ABI guard、runtime 胶水和生成代码授权记录。再分发生成的 package 时，应保留这些授权文件。
+
+## 5. 从 Go 调用
+
+在 module 根目录创建 `add_test.go`：
+
+```go
+package hello_c2go_test
+
+import (
+    "testing"
+
+    "example.com/hello-c2go/translated"
+)
+
+func TestAdd(t *testing.T) {
+    got := translated.Add(20, 22)
+    if got != 42 {
+        t.Fatalf("translated.Add(20, 22) = %d, want 42", got)
+    }
+}
+```
+
+运行测试：
+
+```sh
+go test ./...
+```
+
+预期结果：
+
+```text
+ok  example.com/hello-c2go
+```
+
+## 刚才发生了什么
+
+编译器针对选定的 Go OS 与架构，把 C 降低成 Plan 9 汇编。manifest 告诉 `c2go-bind`：`add` 是导出函数、汇编使用哪个 target 和 ABI epoch、以及需要哪些 runtime 支持。`c2go-bind` 生成 Go 可见的 `Add` 声明，并把匹配的汇编复制到 package 中。
+
+下一章进入[构建管线](/zh-cn/docs/build-pipeline/)，理解 target、package path、汇编和 manifest 为什么必须保持一致。

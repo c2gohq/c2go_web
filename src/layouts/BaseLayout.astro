@@ -1,0 +1,116 @@
+---
+import Header from "@/components/Header.astro";
+import Footer from "@/components/Footer.astro";
+import type { Locale } from "@/data/navigation";
+import "@/styles/global.css";
+
+interface Props {
+  locale: Locale;
+  title: string;
+  description: string;
+  image?: string;
+  noHeader?: boolean;
+  noFooter?: boolean;
+  headerMode?: "marketing" | "docs";
+}
+
+const {
+  locale,
+  title,
+  description,
+  image = "/brand/c2gohq-logo.png",
+  noHeader = false,
+  noFooter = false,
+  headerMode = "marketing",
+} = Astro.props;
+const canonical = new URL(Astro.url.pathname, Astro.site);
+const counterpartPath = Astro.url.pathname.startsWith("/zh-cn")
+  ? Astro.url.pathname.replace(/^\/zh-cn/, "/en")
+  : Astro.url.pathname.replace(/^\/en/, "/zh-cn");
+const counterpart = new URL(counterpartPath, Astro.site);
+const english = locale === "en" ? canonical : counterpart;
+const chinese = locale === "zh-cn" ? canonical : counterpart;
+const fullTitle = title === "C2Go" ? title : `${title} · C2Go`;
+---
+
+<!doctype html>
+<html lang={locale} data-theme="system">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <meta
+      name="theme-color"
+      content="#061126"
+      media="(prefers-color-scheme: dark)"
+    />
+    <meta
+      name="theme-color"
+      content="#ffffff"
+      media="(prefers-color-scheme: light)"
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={new URL(image, Astro.site)} />
+    <meta name="twitter:card" content="summary" />
+    <link rel="canonical" href={canonical} />
+    <link rel="alternate" hreflang="en" href={english} />
+    <link rel="alternate" hreflang="zh-CN" href={chinese} />
+    <link rel="alternate" hreflang="x-default" href={english} />
+    <link rel="icon" type="image/png" href="/brand/c2gohq-logo.png" />
+    <title>{fullTitle}</title>
+    <script is:inline>
+      (() => {
+        const saved = localStorage.getItem("c2go-theme") || "system";
+        document.documentElement.dataset.theme = saved;
+        document.documentElement.style.colorScheme =
+          saved === "system" ? "light dark" : saved;
+      })();
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">
+      {locale === "zh-cn" ? "跳转到正文" : "Skip to content"}
+    </a>
+    {!noHeader && <Header locale={locale} mode={headerMode} />}
+    <slot />
+    {!noFooter && <Footer locale={locale} />}
+    <script is:inline>
+      document.querySelectorAll("[data-theme-choice]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const theme = button.getAttribute("data-theme-choice") || "system";
+          localStorage.setItem("c2go-theme", theme);
+          document.documentElement.dataset.theme = theme;
+          document.documentElement.style.colorScheme =
+            theme === "system" ? "light dark" : theme;
+          document.querySelectorAll("[data-theme-choice]").forEach((choice) => {
+            choice.setAttribute(
+              "aria-pressed",
+              String(choice.getAttribute("data-theme-choice") === theme),
+            );
+          });
+        });
+      });
+      const selectedTheme = localStorage.getItem("c2go-theme") || "system";
+      document.querySelectorAll("[data-theme-choice]").forEach((choice) => {
+        choice.setAttribute(
+          "aria-pressed",
+          String(choice.getAttribute("data-theme-choice") === selectedTheme),
+        );
+      });
+      document.querySelectorAll("[data-locale-choice]").forEach((link) => {
+        link.addEventListener("click", () => {
+          localStorage.setItem(
+            "c2go-locale",
+            link.getAttribute("data-locale-choice") || "en",
+          );
+        });
+      });
+      document.querySelectorAll("pre").forEach((pre) => {
+        pre.tabIndex = 0;
+      });
+    </script>
+  </body>
+</html>

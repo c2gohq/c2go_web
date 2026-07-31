@@ -1,0 +1,68 @@
+---
+title: Native libraries
+description: Import host C ABI symbols while keeping the managed boundary explicit.
+locale: en
+section: interop
+order: 9
+release: v0.20260729.0-rc.5
+sourceLinks:
+  - label: Unmanaged extern imports
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#44-call-external-c-libraries-unmanaged-extern-imports
+  - label: c2go-bind linker options
+    url: https://github.com/c2gohq/c2go_bind/blob/v0.20260729.0-rc.5/README.md#usage
+---
+
+A declaration marked `unmanaged extern` imports a real symbol from a `.so`, `.dylib`, or `.dll`. Calls cross from C2Go's managed execution model through the host C ABI.
+
+## Declare an import
+
+```c
+#include <c2go.h>
+
+unmanaged extern double cos(double value);
+
+c2go_extern double cosine(double value) {
+    return cos(value);
+}
+```
+
+Only referenced imports receive wrappers. An unused declaration does not add dispatch code.
+
+`c2go_extern` is not an import marker: it exports a C definition to Go. These two concepts are intentionally separate.
+
+## Tell c2go-bind which library to load
+
+Pass library names and optional probe directories during binding:
+
+```sh
+c2go-bind \
+  --pkg=example.com/demo/native \
+  --out=native \
+  --sidecar=native.json \
+  -l m \
+  -L /opt/example/lib \
+  native.s
+```
+
+The manifest normally determines whether Unix or Windows dispatch glue is required. `--extern-os=unix|windows` exists for controlled overrides, but should not conceal a target mismatch.
+
+## Pointer ownership still matters
+
+The wrapper handles calling convention and runtime transitions; it does not invent an ownership policy. Before passing a pointer, establish:
+
+- which side allocated the memory;
+- whether the callee retains it after returning;
+- whether the buffer can contain managed pointers; and
+- which side releases it.
+
+If an external library retains a buffer, native unmanaged allocation is the conservative default. Passing a managed pointer across the boundary can produce a lossy-conversion warning and requires an explicit lifetime design.
+
+## Supported call shapes
+
+Scalar, pointer, `float`, and `double` imports are supported on the current Unix and Windows targets. Small records by value are supported within target ABI limits; larger or unusual shapes use wrappers or fail closed. Variadic imports and platform-specific records deserve dedicated cross-target tests.
+
+## Direct calls versus function pointers
+
+Calling `cos(value)` automatically uses the generated host bridge. If you need a C2Go-callable function pointer, use `c2go_callout(cos)`. If you need the raw native address to pass back to another native API, use `&cos`; do not call that raw address directly from C2Go.
+
+The next chapter explains both directions in detail through [callbacks](/en/docs/callbacks/).

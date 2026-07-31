@@ -1,0 +1,37 @@
+---
+import type { Locale } from "@/data/navigation";
+import { localizedPath } from "@/data/navigation";
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const cn = locale === "zh-cn";
+---
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <a class="footer-brand" href={localizedPath(locale)}>
+      <img src="/brand/c2gohq-logo.png" width="30" height="30" alt="" />
+      <strong>C2Go</strong>
+    </a>
+    <p>
+      {
+        cn
+          ? "将 C 编译为可导入的 Go package。"
+          : "Compile C into importable Go packages."
+      }
+    </p>
+    <nav aria-label="Footer">
+      <a href={localizedPath(locale, "docs/overview")}>{cn ? "文档" : "Docs"}</a
+      >
+      <a href="https://github.com/c2gohq">GitHub</a>
+      <a href={localizedPath(locale, "docs/licensing")}
+        >{cn ? "开源协议" : "Licensing"}</a
+      >
+      <a href={localizedPath(locale, "releases")}
+        >{cn ? "发布版本" : "Releases"}</a
+      >
+    </nav>
+  </div>
+</footer>
