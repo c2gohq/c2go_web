@@ -3,11 +3,13 @@ title: 多文件项目
 description: 编译多个 translation unit，使用 C2Go LTO，并安全绑定 archive。
 locale: zh-cn
 section: build
-order: 12
+order: 13
 release: v0.20260729.0-rc.5
 sourceLinks:
-  - label: c2go-clang 多文件模式
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#5-c2go-clang-命令行
+  - label: c2go-clang 多文件 driver 测试
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/test/Driver/c2go-multifile.c
+  - label: c2go-lto 多 TU 测试
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/llvm/test/tools/c2go-lto/wf2-multi-tu.test
   - label: c2go-bind 多输入行为
     url: https://github.com/c2gohq/c2go_bind/blob/v0.20260729.0-rc.5/README.zh-CN.md#用法
 ---
@@ -57,10 +59,10 @@ c2go-lto parser.bc runtime.bc storage.bc \
 | ------------------------------ | ------------------------------------------------ |
 | `--c2go-emit-archive=engine.a` | 把汇编与 manifest member 打包进一个 `ar` archive |
 | `--c2go-lto-inline=0`          | 诊断时关闭跨单元内联                             |
-| `--c2go-escape-nonfatal`       | 报告 stack-to-heap escape 但仍返回成功           |
+| `--c2go-escape-nonfatal`       | 抑制逃逸报告并返回成功；只用于受控诊断           |
 | `--c2go-print-stats`           | 打印管线统计                                     |
 
-退出码 `0` 表示干净，`1` 表示逃逸审计发现 stack-to-heap escape，`2` 表示工具错误。Clang driver 的普通管线会传入 nonfatal 策略。
+不使用 nonfatal 选项时，退出码 `0` 表示干净，`1` 表示发现 stack-to-heap escape，`2` 表示工具或输入错误，`3` 表示跨 TU 属性冲突。Clang driver 的普通管线会传入 nonfatal 策略，因此 driver 构建成功不是逃逸安全门禁。发布构建必须执行独立的[栈指针逃逸审计](/zh-cn/docs/stack-escape-audit/)。
 
 ## 绑定多个输入或 archive
 

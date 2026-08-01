@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import Icon from "@/components/Icon.astro";
+import SafetyNotice from "@/components/SafetyNotice.astro";
 import { assetUrl, release } from "@/data/release";
 import type { Locale } from "@/data/navigation";
 
@@ -34,6 +35,7 @@ const cn = locale === "zh-cn";
         ><span>ABI epoch {release.abiEpoch}</span>
       </div>
     </header>
+    <SafetyNotice locale={locale} />
     <section class="download-section" aria-labelledby="download-heading">
       <h2 id="download-heading">
         {cn ? "选择宿主平台" : "Choose your host platform"}
@@ -60,8 +62,14 @@ const cn = locale === "zh-cn";
         }
       </div>
       <div class="checksum-note">
-        <strong>{cn ? "下载后先验证" : "Verify before extracting"}</strong>
-        <code>sha256sum --check SHA256SUMS</code>
+        <strong>
+          {
+            cn
+              ? "下载同名 .sha256 后先验证"
+              : "Download the matching .sha256 and verify"
+          }
+        </strong>
+        <code>sha256sum --check &lt;archive&gt;.sha256</code>
         <a href={`${release.releaseUrl}`}
           >{cn ? "校验文件与源码包" : "Checksums and source archive"}<Icon
             name="external"

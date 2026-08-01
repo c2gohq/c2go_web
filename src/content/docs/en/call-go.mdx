@@ -3,11 +3,13 @@ title: Call Go from C
 description: Bind C declarations to Go symbols and model Go multi-value returns.
 locale: en
 section: interop
-order: 8
+order: 9
 release: v0.20260729.0-rc.5
 sourceLinks:
-  - label: c2go_linkname reference
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#43-call-go-functions-c2go_linkname
+  - label: c2go_linkname public contract
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/lib/Headers/c2go.h#L81-L109
+  - label: Linkname code-generation test
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/test/CodeGen/c2go-linkname-emit.c
 ---
 
 `c2go_linkname` binds a C declaration to a named Go symbol. The C signature is the compiler's ABI description of that Go function, so it must match exactly.
@@ -27,10 +29,10 @@ Declare and call it from C:
 ```c
 #include <c2go.h>
 
-extern int go_double(int)
+extern __c2go_intptr go_double(__c2go_intptr)
     c2go_linkname("example.com/mathx.Double");
 
-c2go_extern int answer(void) {
+c2go_extern __c2go_intptr answer(void) {
     return go_double(21);
 }
 ```
@@ -42,15 +44,21 @@ For an ordinary Go function, omit the optional ABI selector. C2Go creates an ali
 Use `C2GO_GOABI0` only when the target already exposes a Go ABI0 entry point:
 
 ```c
-extern void *runtime_alloc(const void *, __c2go_intptr)
+extern void *runtime_alloc(const void *, __SIZE_TYPE__)
     c2go_linkname("github.com/c2gohq/c2go_libc.GCMalloc", C2GO_GOABI0);
 ```
 
-This selector requests a direct reference rather than a generated internal-ABI bridge. It is not a general performance switch.
+This selector requests a direct reference rather than a generated internal-ABI bridge. It is not a general performance switch. `<c2go.h>` already exposes this runtime entry as `gc_malloc`; the alias above only illustrates the ABI selector and should not replace that public API.
 
 ## Receive multiple Go results
 
 Describe one Go result slot per C struct field:
+
+```go
+func DivMod(a, b int32) (int32, int32) {
+    return a / b, a % b
+}
+```
 
 ```c
 struct DivMod {

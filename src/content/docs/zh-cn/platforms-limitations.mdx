@@ -3,11 +3,11 @@ title: 平台与限制
 description: 区分已发布宿主 SDK 与编译器 target，并理解 fail-closed 边界。
 locale: zh-cn
 section: build
-order: 15
+order: 16
 release: v0.20260729.0-rc.5
 sourceLinks:
-  - label: 兼容矩阵
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#7-兼容矩阵
+  - label: Release 构建矩阵
+    url: https://github.com/c2gohq/c2go_toolchain/blob/v0.20260729.0-rc.5/.github/workflows/release.yml
   - label: 当前 release notes
     url: https://github.com/c2gohq/c2go_toolchain/blob/v0.20260729.0-rc.5/RELEASE_NOTES/v0.20260729.0-rc.5.zh-CN.md
 ---
@@ -29,7 +29,7 @@ sourceLinks:
 
 ## 其他 codegen 路径
 
-除 release matrix 外，编译器还包含 Darwin amd64 路径，以及演练较少的 Windows arm64 路径。这不等于这些组合已有可直接使用的 SDK，或已经通过完整 release gate。
+除 release matrix 外，编译器还包含 Darwin amd64 codegen 路径。Windows arm64 目前只能视为不完整的实验路径：简单输入可以写出标记为 `windows/arm64` 的 manifest，但当前 `c2go_extern` 仍会报告该 target 不支持对应 calling convention。它不是可用组合，也没有 SDK 或完整 release gate。
 
 ## 边界能力矩阵
 
@@ -48,10 +48,11 @@ sourceLinks:
 
 ## 语言硬限制
 
+- **C 栈指针不能逃逸到堆或全局状态。** C2Go 不会提升逃逸 local；发布前必须通过独立的 [`c2go-lto` 审计](/zh-cn/docs/stack-escape-audit/)。
 - 只支持 C 和 64 位；C++ 会被拒绝。
 - 拒绝 variable-length array 与动态 `alloca`，因为可移动 Go 栈使它们的基址不健全。
 - Managed record 不能 packed，也不能覆盖单字段 alignment。
-- 不支持通过 `c2go_iface` 动态调用 interface method。
+- `c2go_iface` 只提供 ABI 表示；当前没有动态调用 interface method 的 C 侧 API。应绑定具名 Go wrapper。
 - `c2go_variant` 不能表示有歧义的重叠 managed pointer。
 - `c2go_returntype` 的每个字段必须占据一个受支持 Go ABI result slot。
 - Callback operand 必须命名 C2Go 函数；裸 C2Go function pointer 不能传入 native callback slot。

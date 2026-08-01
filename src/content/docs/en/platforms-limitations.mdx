@@ -3,11 +3,11 @@ title: Platforms and limits
 description: Distinguish released host SDKs from compiler targets and understand fail-closed boundaries.
 locale: en
 section: build
-order: 15
+order: 16
 release: v0.20260729.0-rc.5
 sourceLinks:
-  - label: Compatibility matrix
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#7-compatibility-matrix
+  - label: Release build matrix
+    url: https://github.com/c2gohq/c2go_toolchain/blob/v0.20260729.0-rc.5/.github/workflows/release.yml
   - label: Current release notes
     url: https://github.com/c2gohq/c2go_toolchain/blob/v0.20260729.0-rc.5/RELEASE_NOTES/v0.20260729.0-rc.5.md
 ---
@@ -29,7 +29,7 @@ Each archive is native to its host. Generated output is also specific to `(GOOS,
 
 ## Additional code-generation paths
 
-The compiler contains paths for Darwin amd64 and partially exercised Windows arm64 in addition to the release matrix. That does not mean a ready-to-use SDK archive or full release gate exists for those combinations.
+The compiler also contains a Darwin amd64 code-generation path. Windows arm64 is currently only an incomplete experimental path: a simple input can write a `windows/arm64` manifest, but `c2go_extern` still reports that its calling convention is unsupported for that target. It is not a usable combination and has neither an SDK nor a complete release gate.
 
 ## Boundary feature matrix
 
@@ -48,10 +48,11 @@ The compiler contains paths for Darwin amd64 and partially exercised Windows arm
 
 ## Hard language limits
 
+- **C stack pointers cannot escape into heap or global state.** C2Go does not promote escaping locals; require the standalone [`c2go-lto` audit](/en/docs/stack-escape-audit/) before release.
 - C only and 64-bit only; C++ is rejected.
 - Variable-length arrays and dynamic `alloca` are rejected because movable Go stacks make their bases unsound.
 - Managed records cannot be packed or override individual field alignment.
-- Dynamic interface-method dispatch through `c2go_iface` is unavailable.
+- `c2go_iface` is an ABI representation only; there is currently no C-side API for dynamic interface-method calls. Bind a named Go wrapper instead.
 - `c2go_variant` cannot represent ambiguous overlapping managed pointers.
 - `c2go_returntype` fields must each occupy one supported Go ABI result slot.
 - Callback operands must name C2Go functions; bare C2Go function pointers cannot be passed to native callback slots.

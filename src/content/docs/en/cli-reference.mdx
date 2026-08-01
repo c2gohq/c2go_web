@@ -3,11 +3,13 @@ title: CLI reference
 description: Practical reference for c2go-clang, c2go-lto, and c2go-bind.
 locale: en
 section: build
-order: 14
+order: 15
 release: v0.20260729.0-rc.5
 sourceLinks:
-  - label: Compiler flags
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#5-c2go-clang-command-line
+  - label: Compiler option definitions
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/include/clang/Options/Options.td#L3289-L3317
+  - label: c2go-lto option definitions
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/llvm/tools/c2go-lto/c2go-lto.cpp#L153-L193
   - label: Binder flags
     url: https://github.com/c2gohq/c2go_bind/blob/v0.20260729.0-rc.5/README.md#usage
 ---
@@ -18,7 +20,7 @@ This page summarizes the stable user-facing flags in the coordinated release. Ru
 
 | Flag                               | Meaning                                                            |
 | ---------------------------------- | ------------------------------------------------------------------ |
-| `-fc2go`                           | Enable managed-by-default C and Go ABI lowering                    |
+| `-fc2go`                           | Enable C2Go language extensions and Go ABI lowering                |
 | `--target=<triple>`                | Select machine architecture, OS data model, and Go ABI environment |
 | `-fc2go-package=<path>`            | Go package path used for symbol names; defaults to `main`          |
 | `-fc2go-emit-plan9-asm=<file>`     | Write Plan 9 assembly                                              |
@@ -33,23 +35,25 @@ c2go-clang --target=x86_64-unknown-linux-goabi \
   -fc2go -fc2go-package=example.com/acme/mypkg -O2 \
   -fc2go-emit-plan9-asm=out.s \
   -fc2go-emit-manifest=out.json \
-  -c -o out.o input.c
+  input.c
 ```
 
 Advanced internal knobs are passed as `-mllvm -<flag>`. They include extern-wrapper fallback, selective pass disabling, and cooperative loop-poll timing. Treat them as diagnostic controls rather than package API.
 
 ## c2go-lto
 
-| Flag                              | Meaning                                         |
-| --------------------------------- | ----------------------------------------------- |
-| `--c2go-emit-asm=<file>`          | Write merged Plan 9 assembly                    |
-| `--c2go-emit-manifest=<file>`     | Write merged manifest                           |
-| `--c2go-emit-archive=<file>`      | Pack assembly and manifest into an `ar` archive |
-| `--c2go-escape-nonfatal`          | Report escape findings without exit status 1    |
-| `--c2go-lto-inline[=0]`           | Enable or disable cross-unit inlining           |
-| `--c2go-andersen-field-sensitive` | Enable field-sensitive escape analysis          |
-| `--c2go-escape-dedup`             | Deduplicate escape reports                      |
-| `--c2go-print-stats`              | Print pipeline statistics                       |
+| Flag                              | Meaning                                                     |
+| --------------------------------- | ----------------------------------------------------------- |
+| `--c2go-emit-asm=<file>`          | Write merged Plan 9 assembly                                |
+| `--c2go-emit-manifest=<file>`     | Write merged manifest                                       |
+| `--c2go-emit-archive=<file>`      | Pack assembly and manifest into an `ar` archive             |
+| `--c2go-escape-nonfatal`          | Suppress escape findings and return success; diagnosis only |
+| `--c2go-lto-inline[=0]`           | Enable or disable cross-unit inlining                       |
+| `--c2go-andersen-field-sensitive` | Enable field-sensitive escape analysis                      |
+| `--c2go-escape-dedup`             | Deduplicate escape reports                                  |
+| `--c2go-print-stats`              | Print pipeline statistics                                   |
+
+Standalone `c2go-lto` is the release gate for stack-pointer escape: leave `--c2go-escape-nonfatal` off and require exit status `0`. The normal Clang driver does not enforce that gate in this release. See [Stack escape safety](/en/docs/stack-escape-audit/).
 
 ## c2go-bind
 

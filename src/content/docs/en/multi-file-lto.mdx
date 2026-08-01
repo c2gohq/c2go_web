@@ -3,11 +3,13 @@ title: Multi-file projects
 description: Compile several translation units, use C2Go LTO, and bind archives safely.
 locale: en
 section: build
-order: 12
+order: 13
 release: v0.20260729.0-rc.5
 sourceLinks:
-  - label: c2go-clang multi-file mode
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#5-c2go-clang-command-line
+  - label: c2go-clang multi-file driver test
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/test/Driver/c2go-multifile.c
+  - label: c2go-lto multi-TU test
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/llvm/test/tools/c2go-lto/wf2-multi-tu.test
   - label: c2go-bind multi-input behavior
     url: https://github.com/c2gohq/c2go_bind/blob/v0.20260729.0-rc.5/README.md#usage
 ---
@@ -53,14 +55,14 @@ c2go-lto parser.bc runtime.bc storage.bc \
 
 Useful options include:
 
-| Option                         | Use                                                       |
-| ------------------------------ | --------------------------------------------------------- |
-| `--c2go-emit-archive=engine.a` | Package assembly and manifest members in one `ar` archive |
-| `--c2go-lto-inline=0`          | Disable cross-unit inlining for diagnosis                 |
-| `--c2go-escape-nonfatal`       | Report stack-to-heap escape but return success            |
-| `--c2go-print-stats`           | Print pipeline statistics                                 |
+| Option                         | Use                                                           |
+| ------------------------------ | ------------------------------------------------------------- |
+| `--c2go-emit-archive=engine.a` | Package assembly and manifest members in one `ar` archive     |
+| `--c2go-lto-inline=0`          | Disable cross-unit inlining for diagnosis                     |
+| `--c2go-escape-nonfatal`       | Suppress the escape report and return success; diagnosis only |
+| `--c2go-print-stats`           | Print pipeline statistics                                     |
 
-Exit status `0` is clean, `1` means the escape audit found stack-to-heap escape, and `2` is a tool error. The Clang driver passes the nonfatal policy for its normal pipeline.
+Without the nonfatal option, exit status `0` is clean, `1` means the escape audit found stack-to-heap escape, `2` is a tool/input error, and `3` is a cross-TU attribute conflict. The Clang driver passes the nonfatal policy for its normal pipeline, so a successful driver build is not an escape-safety gate. Follow the standalone [stack escape audit](/en/docs/stack-escape-audit/) for release builds.
 
 ## Bind multiple inputs or an archive
 

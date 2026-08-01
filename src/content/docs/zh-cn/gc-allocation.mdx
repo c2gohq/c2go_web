@@ -3,13 +3,15 @@ title: GC 感知分配
 description: 在 Go heap 上分配带类型的 C 对象，并保留准确的指针布局。
 locale: zh-cn
 section: concepts
-order: 6
+order: 7
 release: v0.20260729.0-rc.5
 sourceLinks:
   - label: GC 分配与类型信息
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#41-gc-分配
-  - label: c2go-libc 仓库
-    url: https://github.com/c2gohq/c2go_libc
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/lib/Headers/c2go.h#L120-L149
+  - label: c2go-libc typed GC 分配实现
+    url: https://github.com/c2gohq/c2go_libc/blob/v0.20260729.0-rc.5/gc_malloc.go
+  - label: c2go-libc malloc 实现
+    url: https://github.com/c2gohq/c2go_libc/blob/v0.20260729.0-rc.5/malloc.go
 ---
 
 `gc_malloc` 会在 Go heap 上分配清零内存。与普通 C 分配不同，它接收 runtime 类型信息，让垃圾回收器知道哪些机器字保存着指针。
@@ -18,8 +20,10 @@ sourceLinks:
 
 ```c
 #include <c2go.h>
+#include <stddef.h>
+#include <stdint.h>
 
-managed struct Node {
+struct managed Node {
     struct Node *next;
     int value;
 };
@@ -29,6 +33,9 @@ struct Node *new_node(int value) {
         c2go_typeinfo(struct Node),
         sizeof(struct Node)
     );
+    if (node == NULL) {
+        return NULL;
+    }
     node->value = value;
     return node;
 }
@@ -37,6 +44,8 @@ struct Node *new_node(int value) {
 `c2go_typeinfo(struct Node)` 是通过宏公开的编译器 builtin，返回这个具名 managed record 对应的 Go runtime 类型描述符。无需手写或注册 pointer bitmap。
 
 它没有对应的 `free`；对象不可达后由 Go GC 回收。
+
+当数据必须活过当前 C 栈帧时，也应把它改写为 heap 分配。不要把 `&local` 存进这个对象；C2Go 不会自动把 local 移动到堆。详见[栈指针逃逸安全](/zh-cn/docs/stack-escape-audit/)。
 
 ## 分配数组
 
@@ -52,6 +61,8 @@ struct Node *nodes = gc_malloc_array(
 
 runtime 会在整块内存中重复元素的 pointer bitmap，类似为 Go slice 分配 backing array。
 
+当前 inline helper 直接计算 `elem_size * count`，不会替调用方检测乘法溢出。处理不可信长度时，先验证 `count <= SIZE_MAX / elem_size`，并检查返回值是否为 `NULL`。
+
 ## 分配不含指针的 blob
 
 把 `NULL` 作为类型信息会得到 GC 不扫描指针的内存：
@@ -64,15 +75,15 @@ unsigned char *bytes = gc_malloc(NULL, byte_count);
 
 ## 不要混用所有权模型
 
-| allocator                       | 世界             | 释放方式 |
-| ------------------------------- | ---------------- | -------- |
-| `gc_malloc` / `gc_malloc_array` | managed Go heap  | 自动 GC  |
-| `malloc` / `calloc` / `realloc` | unmanaged C heap | `free`   |
+| allocator                       | 世界                               | 释放方式 |
+| ------------------------------- | ---------------------------------- | -------- |
+| `gc_malloc` / `gc_malloc_array` | typed managed Go heap              | 自动 GC  |
+| `malloc` / `calloc` / `realloc` | c2go-libc unmanaged C 语义 storage | `free`   |
 
-不要对 Go heap 指针调用 `free`，也不要假设原生库可以无限期保存 managed 指针。如果原生 API 接管所有权，应分配 native storage 并复制数据，或设计明确的 handle 边界。
+不要对 typed Go heap 指针调用 `free`，也不要假设原生库可以无限期保存 managed 指针。如果原生 API 接管所有权，应使用该 API 明确要求的 allocator 并复制数据，或设计稳定 handle 边界；c2go-libc 的 `malloc` 并不等同于宿主系统 `malloc`。
 
 ## 类型信息限制
 
 `c2go_typeinfo` 要求具名且完整的 record 类型。匿名 record 和保留的 runtime 标识符会被拒绝。Managed record 使用与 Go 兼容的布局规则，因此不能使用 packed layout 或逐字段 alignment 覆盖。
 
-下一章在[将 C 导出给 Go](/zh-cn/docs/export-c/)中把 managed C 函数与 record 变成 Go API。
+下一章在[将 C 导出给 Go](/zh-cn/docs/export-c/)中把 C2Go 函数与 managed record 变成 Go API。

@@ -1,0 +1,121 @@
+---
+title: 栈指针逃逸安全
+description: 理解 C2Go 当前无法处理的栈指针逃逸，并把独立 LTO 审计设为发布门禁。
+locale: zh-cn
+section: start
+order: 2
+release: v0.20260729.0-rc.5
+sourceLinks:
+  - label: 前端栈逃逸诊断
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/test/Sema/c2go-managed-stack-escape.c
+  - label: 全程序逃逸门禁
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/llvm/test/tools/c2go-lto/escape-audit-gate.test
+  - label: Driver nonfatal 策略
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/lib/Driver/ToolChains/C2Go.cpp#L33-L38
+---
+
+> **会阻止发布的当前限制：** C2Go 不会对 C 局部变量执行 Go 编译器式的逃逸提升。即使一个 C 栈变量的地址被保存到堆或全局状态，它仍留在 goroutine 栈上；函数返回或 goroutine 栈移动后，这个地址可能成为悬空指针。
+
+这是当前最重要的内存安全约束。准备发布的代码必须把下面两层检查作为强制门禁。
+
+## 不安全的形状
+
+写入既可能是直接的，也可能隐藏在另一个函数中：
+
+```c
+#include <c2go.h>
+
+struct managed Box {
+    void *slot;
+};
+
+static void retain(void **slot, void *value) {
+    *slot = value;
+}
+
+c2go_extern void save_local(struct Box *box) {
+    int local = 7;
+    retain(&box->slot, &local); // 不安全：local 不会自动移动到堆
+}
+```
+
+无论栈地址被保存在 native heap、Go managed heap、可写全局变量，还是任何可能比当前栈帧活得更久的对象里，生命周期问题都一样。把栈指针传给同步函数本身不一定是逃逸；只有在被调用方不保留它时才安全。
+
+## 两层检查都要使用
+
+默认开启的前端诊断 `-Wc2go-managed-stack-escape` 能捕获 `box->slot = &local` 这类直接写法。长期维护的构建应把它提升为错误：
+
+```sh
+-Werror=c2go-managed-stack-escape
+```
+
+这个语法级检查无法跟踪所有 helper call 或跨 translation unit 的数据流。请为**全部** translation unit 生成一套仅用于审计的 bitcode，再单独运行不带 `--c2go-escape-nonfatal` 的 `c2go-lto`：
+
+```sh
+mkdir -p .c2go-audit
+
+c2go-clang --target="$C2GO_TARGET" \
+  -fc2go -std=c2go23 -O0 -gline-tables-only \
+  -emit-llvm -c src/parser.c -o .c2go-audit/parser.bc
+
+c2go-clang --target="$C2GO_TARGET" \
+  -fc2go -std=c2go23 -O0 -gline-tables-only \
+  -emit-llvm -c src/storage.c -o .c2go-audit/storage.bc
+
+c2go-lto .c2go-audit/parser.bc .c2go-audit/storage.bc
+```
+
+这是一条独立的审计构建：`-O0` 尽量保留源码形状，`-gline-tables-only` 让报告带上文件与行号。审计通过后，再用正常优化参数生成发布用汇编与 manifest。
+
+干净结果应为：
+
+```text
+c2go-lto: 0 stack-address escape point(s)
+```
+
+发现逃逸时，工具会输出 `c2go-lto: stack->heap in <函数> at <位置>` 并返回 `1`。返回 `2` 表示工具或输入错误，返回 `3` 表示跨 translation unit 属性冲突；两者都不能视为审计通过。
+
+points-to 分析会有意保持保守。如果工具无法证明某个 pointer parameter 的所有调用方都只传入栈内 storage，那么通过该参数写入也可能被报告。应沿报告中的 value 和 destination 检查全部 call site；`--c2go-andersen-field-sensitive` 可以减少部分 field-insensitive 噪声。不要仅为了隐藏未解决的报告而开启 nonfatal；应重构生命周期或边界，直到发布门禁干净。
+
+## 普通 driver 构建不是门禁
+
+在当前版本里，普通 `c2go-clang` 汇编/manifest 管线会给内部 `c2go-lto` 传入 `--c2go-escape-nonfatal`，并抑制逃逸报告。因此，普通编译成功**不能证明**程序没有 stack-to-heap escape。
+
+发布审计不要使用 `--c2go-escape-nonfatal`。排查时可以用 `--c2go-escape-dedup=false` 展开每个写入点；`--c2go-andersen-field-sensitive` 可以用更多分析时间减少 field-insensitive 带来的噪声。
+
+## 把需要保留的数据放到堆上
+
+需要活过当前栈帧的数据，应使用正确的 Go heap 类型信息分配：
+
+```c
+#include <c2go.h>
+#include <stddef.h>
+
+struct managed Value {
+    int number;
+};
+
+struct managed Box {
+    struct Value *slot;
+};
+
+c2go_extern void save_value(struct Box *box) {
+    struct Value *value = gc_malloc(
+        c2go_typeinfo(struct Value),
+        sizeof(*value)
+    );
+    if (value == NULL) {
+        return;
+    }
+    value->number = 7;
+    box->slot = value;
+}
+```
+
+如果对象由 native code 长期持有，应使用该 native API 要求的 allocator，并明确由谁释放。很多边界使用稳定的整数 handle 会比暴露 managed pointer 更安全。
+
+## 审计不等于形式化证明
+
+`c2go-lto` 使用全程序 Andersen 风格 points-to 审计，比前端直接模式 warning 更强，但它仍是工程安全检查，不是形式化生命周期证明。opaque native call、错误的内联汇编 constraint，或遗漏在 bitcode 输入集之外的代码都可能隐藏行为。必须保证输入完整、逐个审核 native retention 边界，并保留端到端 Go 测试。
+
+把这项限制纳入构建策略后，再继续[安装 SDK](/zh-cn/docs/installation/)。

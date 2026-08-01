@@ -6,8 +6,10 @@ section: start
 order: 1
 release: v0.20260729.0-rc.5
 sourceLinks:
-  - label: c2go user guide
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md
+  - label: Public C2Go header
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/lib/Headers/c2go.h
+  - label: Driver pipeline regression test
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/test/Driver/c2go-multifile.c
   - label: Toolchain release
     url: https://github.com/c2gohq/c2go_toolchain/releases/tag/v0.20260729.0-rc.5
 ---
@@ -18,11 +20,10 @@ This is ahead-of-time compilation. C2Go does not embed a C compiler in your appl
 
 ## What the toolchain produces
 
-For a C translation unit, `c2go-clang` produces:
+For one or more C translation units, `c2go-clang` produces:
 
 - Plan 9 assembly (`.s`) for the Go assembler;
-- a JSON manifest describing exported symbols, types, target information, callbacks, and linker inputs; and
-- an incidental object file when the driver is invoked with `-c`.
+- a JSON manifest describing exported symbols, types, target information, callbacks, and linker inputs.
 
 `c2go-bind` consumes the assembly and manifest and writes generated `.go` and `.s` files into a normal Go package. `go build` or `go test` completes the build.
 
@@ -41,9 +42,9 @@ Go toolchain + c2go-libc
 
 ## What is different from ordinary C
 
-C2Go adds an explicit distinction between two memory worlds:
+C2Go adds an explicit distinction between two memory worlds. In the current implementation, the translation-unit default is **unmanaged**; managed behavior is opt-in through record/pointer attributes or `#pragma c2go managed(N) push` regions:
 
-- **managed** values participate in the Go runtime's memory model and are the default;
+- **managed** values participate in the Go runtime's memory model and carry precise GC metadata;
 - **unmanaged** values represent native C memory and external C ABI boundaries.
 
 That distinction lets the compiler preserve precise GC information. It also means some C operations that are normally unchecked become warnings or errors when they could hide pointers from the collector.
@@ -67,6 +68,7 @@ The coordinated release is intentionally narrow:
 - 64-bit `amd64` and `arm64` code generation;
 - Go 1.25.x for the current SDK release;
 - separate generated output for each OS and architecture; and
+- no automatic promotion when a C stack pointer escapes into heap or global storage; and
 - pre-1.0 APIs and ABI details that may still change.
 
 The release page lists the host SDK archives that are actually built and tested. Do not infer a supported release package merely because a backend can generate code for a target.
@@ -75,7 +77,7 @@ The release page lists the host SDK archives that are actually built and tested.
 
 C2Go is useful when you want to port or reuse C implementation code while presenting a normal Go package to its consumers. It is especially relevant when the code benefits from Go-managed allocation or needs tighter runtime integration than a conventional process boundary.
 
-It is not yet a drop-in replacement for every cgo project. C++ code, 32-bit targets, dynamic stack allocation, packed managed records, and several platform-specific callback shapes remain outside the current contract.
+It is not yet a drop-in replacement for every cgo project. C++ code, 32-bit targets, dynamic stack allocation, packed managed records, stack-to-heap pointer escape, and several platform-specific callback shapes remain outside the current contract. Read and enforce the [stack escape safety gate](/en/docs/stack-escape-audit/) before porting stateful code.
 
 ## Next step
 

@@ -3,7 +3,7 @@ title: 安装 SDK
 description: 下载、校验并配置协同版本的 C2Go SDK 与 runtime module。
 locale: zh-cn
 section: start
-order: 2
+order: 3
 release: v0.20260729.0-rc.5
 sourceLinks:
   - label: SDK 中文说明
@@ -29,11 +29,14 @@ Release 压缩包是可以整体移动的原生 SDK，包含三个命令行工�
 | `windows-amd64` | `x86_64-pc-windows-goabi`     |
 | `macos-arm64`   | `aarch64-apple-darwin`        |
 
-从 [Release 页面](https://github.com/c2gohq/c2go_toolchain/releases/tag/v0.20260729.0-rc.5)下载压缩包及对应 `.sha256` 文件。可以用汇总文件统一校验：
+从 [Release 页面](https://github.com/c2gohq/c2go_toolchain/releases/tag/v0.20260729.0-rc.5)下载压缩包及同名 `.sha256` sidecar，然后只校验实际下载的平台包：
 
 ```sh
-sha256sum --check SHA256SUMS
+archive=c2go-toolchain-v0.20260729.0-rc.5-linux-amd64.tar.gz
+sha256sum --check "$archive.sha256"
 ```
+
+如果下载了 release 的全部 archive，也可以用 `SHA256SUMS` 一次校验全部文件。macOS 可使用 `shasum -a 256 -c "$archive.sha256"`；Windows PowerShell 可用 `Get-FileHash -Algorithm SHA256` 计算后与 sidecar 比对。
 
 当前版本尚未签名，因此不要跳过校验。
 

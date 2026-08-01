@@ -12,6 +12,9 @@ test("English landing page exposes the real pipeline", async ({ page }) => {
   ).toBeVisible();
   await expect(page.getByText("c2go-libc").first()).toBeVisible();
   await expect(
+    page.getByText("Stack pointers must not escape to the heap"),
+  ).toBeVisible();
+  await expect(
     page.getByRole("link", { name: /Get started/ }).first(),
   ).toHaveAttribute("href", "/en/docs/hello-world/");
 });
@@ -28,6 +31,47 @@ test("language switch preserves the document slug and preference", async ({
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem("c2go-locale")))
     .toBe("zh-cn");
+});
+
+test("every documentation page exposes the stack escape release gate", async ({
+  page,
+}, testInfo) => {
+  test.skip(
+    testInfo.project.name === "mobile",
+    "The same notice is covered by the mobile navigation test.",
+  );
+  await page.goto("/en/docs/installation/");
+  const notice = page.locator(".safety-notice");
+  await expect(notice).toContainText("Stack pointers must not escape");
+  await expect(notice.getByRole("link")).toHaveAttribute(
+    "href",
+    "/en/docs/stack-escape-audit/",
+  );
+
+  await page.goto("/zh-cn/docs/stack-escape-audit/");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "栈指针逃逸安全",
+  );
+  await expect(
+    page.getByRole("heading", {
+      level: 2,
+      name: "普通 driver 构建不是门禁",
+    }),
+  ).toBeVisible();
+});
+
+test("top-level product pages expose the stack escape limitation", async ({
+  page,
+}) => {
+  for (const pathname of ["/en/components/", "/en/releases/"]) {
+    await page.goto(pathname);
+    const notice = page.locator(".safety-notice");
+    await expect(notice).toContainText("Stack pointers must not escape");
+    await expect(notice.getByRole("link")).toHaveAttribute(
+      "href",
+      "/en/docs/stack-escape-audit/",
+    );
+  }
 });
 
 test("root route selects Chinese from the browser locale", async ({
@@ -109,6 +153,7 @@ test("core pages have no serious accessibility violations", async ({
   for (const pathname of [
     "/en/",
     "/en/docs/hello-world/",
+    "/en/docs/stack-escape-audit/",
     "/zh-cn/docs/managed-unmanaged/",
   ]) {
     await page.goto(pathname);
@@ -148,6 +193,7 @@ test("mobile documentation has no horizontal overflow and opens the chapter draw
     .toBe(true);
   await page.getByRole("button", { name: /Documentation menu/ }).click();
   await expect(page.locator(".docs-sidebar")).toHaveClass(/is-open/);
+  await expect(page.locator(".docs-sidebar")).toBeInViewport();
   await expect(
     page.getByRole("link", { name: "The build pipeline", exact: true }),
   ).toBeVisible();

@@ -3,11 +3,11 @@ title: Hello World
 description: 将一个 C 函数编译成 Go package，并在 Go 测试中调用它。
 locale: zh-cn
 section: start
-order: 3
+order: 4
 release: v0.20260729.0-rc.5
 sourceLinks:
-  - label: SDK 快速开始
-    url: https://github.com/c2gohq/c2go_toolchain/blob/v0.20260729.0-rc.5/SDK-README.zh-CN.md#快速开始
+  - label: C2Go driver 回归测试
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/test/Driver/c2go-multifile.c
   - label: c2go-bind 用法
     url: https://github.com/c2gohq/c2go_bind/blob/v0.20260729.0-rc.5/README.zh-CN.md#用法
 ---
@@ -19,6 +19,7 @@ sourceLinks:
 ```sh
 mkdir hello-c2go
 cd hello-c2go
+mkdir .c2go
 go mod init example.com/hello-c2go
 go get github.com/c2gohq/c2go_libc@v0.20260729.0-rc.5
 ```
@@ -31,7 +32,7 @@ export C2GO_TARGET=aarch64-apple-darwin
 
 ## 2. 编写 C 函数
 
-创建 `input.c`：
+创建 `.c2go/input.c`：
 
 ```c
 #include <stdint.h>
@@ -42,7 +43,11 @@ c2go_extern int add(int a, int b) {
 }
 ```
 
-`c2go_extern` 会把一个**已经定义的** C 函数导出。默认 Go 名称会将第一个字母改为大写，因此 `add` 会生成 `Add`。
+`c2go_extern` 会把一个**已经定义的** C 函数导出。默认 Go 名称会按下划线分段转换为 CamelCase：`add` 生成 `Add`，`sqlite3_open` 生成 `Sqlite3Open`。
+
+C 的 `int` 在这些 64 位 target 上仍是 32 位，因此生成签名是 `func Add(a, b int32) int32`，不是 Go 的机器字宽 `int`。测试中的 `20` 和 `22` 是无类型常量，可以直接传入。
+
+请把 C 源码和编译器中间产物放在隐藏的 `.c2go/` 目录。未启用 cgo 时，Go command 会拒绝 package 目录中的普通 `.c` 文件；package discovery 会忽略点号开头的目录。
 
 ## 3. 使用 c2go-clang 编译
 
@@ -51,12 +56,12 @@ c2go-clang --target="$C2GO_TARGET" \
   -fc2go \
   -fc2go-package=example.com/hello-c2go/translated \
   -O2 \
-  -fc2go-emit-plan9-asm=translated.s \
-  -fc2go-emit-manifest=translated.json \
-  -c -o translated.o input.c
+  -fc2go-emit-plan9-asm=.c2go/translated.s \
+  -fc2go-emit-manifest=.c2go/translated.json \
+  .c2go/input.c
 ```
 
-真正重要的输出是 `translated.s` 和 `translated.json`。`translated.o` 只是这条管线的附带产物。
+编译器会写入 `.c2go/translated.s` 与 `.c2go/translated.json`；这条 emit 路径不会产生可用的 `translated.o` 目标文件。
 
 ## 4. 生成 Go package
 
@@ -65,8 +70,8 @@ mkdir -p translated
 c2go-bind \
   --pkg=example.com/hello-c2go/translated \
   --out=translated \
-  --sidecar=translated.json \
-  translated.s
+  --sidecar=.c2go/translated.json \
+  .c2go/translated.s
 ```
 
 输出目录现在包含 Go 声明、汇编、ABI guard、runtime 胶水和生成代码授权记录。再分发生成的 package 时，应保留这些授权文件。
@@ -102,6 +107,7 @@ go test ./...
 
 ```text
 ok  example.com/hello-c2go
+?   example.com/hello-c2go/translated  [no test files]
 ```
 
 ## 刚才发生了什么

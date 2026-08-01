@@ -3,11 +3,13 @@ title: The build pipeline
 description: Follow C source through Clang, C2Go LTO, binding generation, and the Go toolchain.
 locale: en
 section: concepts
-order: 4
+order: 5
 release: v0.20260729.0-rc.5
 sourceLinks:
-  - label: End-to-end pipeline
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#9-end-to-end-shape
+  - label: Driver pipeline regression test
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/test/Driver/c2go-multifile.c
+  - label: Standalone escape gate regression test
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/llvm/test/tools/c2go-lto/escape-audit-gate.test
   - label: c2go-bind inputs
     url: https://github.com/c2gohq/c2go_bind/blob/v0.20260729.0-rc.5/README.md#where-it-fits
 ---
@@ -30,7 +32,9 @@ Even a single-source driver invocation uses this internal path when emit flags a
 cc1 → LLVM bitcode → c2go-lto → output.s + output.json
 ```
 
-`-O0` and `-O2` are both supported. At `-O0`, register-ABI and leaf optimizations are disabled; `-O2` enables the performance-oriented pipeline.
+`-O0` and `-O2` are both supported. `-O0` keeps the simpler, primarily GoABI0 stack-argument path and skips the cross-TU inlining, statepoint GC, and leaf internal-ABI optimizations enabled at `-O2`; return ABI behavior remains consistent across optimization levels.
+
+The ordinary driver invokes its internal escape audit in nonfatal mode and suppresses its report in this release. That internal pass is **not** the release safety gate. Build all translation units as audit bitcode and invoke standalone `c2go-lto` as described in [Stack escape safety](/en/docs/stack-escape-audit/).
 
 ## Stage 3: Manifest-guided binding
 

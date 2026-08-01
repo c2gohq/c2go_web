@@ -3,7 +3,7 @@ title: 内联汇编
 description: 在遵守 Go 栈和 GC 规则的前提下，使用 Clang 现有的 call-free 内联汇编。
 locale: zh-cn
 section: build
-order: 13
+order: 14
 release: v0.20260729.0-rc.5
 sourceLinks:
   - label: C2Go 内联汇编回归测试
@@ -40,6 +40,8 @@ static void compiler_barrier(void *pointer) {
 
 源码仍然与 target 相关。应像编写可移植 Clang C 一样，正确保护指令、寄存器 constraint 和 clobber。
 
+Plan 9 输出不一定保留 GNU 汇编助记符：例如当前后端可能把 AArch64 `yield` 写成 `WORD`，把 x86 `pause` 写成 `BYTE` 序列。验收生成代码时应核对最终编码，不要只搜索源码里的助记符。
+
 ## 为什么必须 call-free
 
 LLVM 把 inline assembly 表示成 `CallBase`，但受支持的 inline-asm statement 不是机器 `CALL` 或 `BL`，不会进入 callee 的 Go `morestack` prologue。因此 C2Go 将它标为 GC-leaf，不为语句本身创建 safepoint 或 stackmap。
@@ -65,7 +67,7 @@ call-free loop 内存在 inline assembly，也不会让循环自动变得 cooper
 1. 确认模板不包含 call。
 2. 声明每一个 input、output 与 clobber。
 3. 分别测试每个 target。
-4. 检查生成的 Plan 9 汇编是否包含预期指令和正确栈寻址。
+4. 检查生成的 Plan 9 汇编是否包含预期指令编码和正确栈寻址。
 5. 增加端到端 Go 测试，而不只依赖 LLVM IR test。
 
 用于保留和检查编译产物的参数见[命令行参考](/zh-cn/docs/cli-reference/)。

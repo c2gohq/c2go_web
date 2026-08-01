@@ -3,46 +3,63 @@ title: Managed and unmanaged
 description: Learn the two memory worlds C2Go uses to keep the Go garbage collector sound.
 locale: en
 section: concepts
-order: 5
+order: 6
 release: v0.20260729.0-rc.5
 sourceLinks:
-  - label: Managed/unmanaged model
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#3-managed--unmanaged-worlds-core-mental-model
+  - label: Default function world regression test
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/test/CodeGen/c2go-func-world-default.c
+  - label: Default world initialization
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/lib/Sema/Sema.cpp#L391-L400
+  - label: Pragma parser
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/lib/Parse/ParsePragma.cpp#L2295-L2357
+  - label: c2go-libc malloc implementation
+    url: https://github.com/c2gohq/c2go_libc/blob/v0.20260729.0-rc.5/malloc.go
 ---
 
-Every C2Go type, object, field, parameter, and function belongs to a **managed** or **unmanaged** world. This is a compiler-checked memory contract, not just documentation.
+Every C2Go record, pointer declaration, and function boundary can carry a **managed** or **unmanaged** world. This is a compiler-checked memory contract, not just documentation.
 
-## Managed is the default
+## Unmanaged is the default
 
-Managed pointers refer to memory tracked by the Go garbage collector. Stores of managed pointers preserve precise pointer information and receive the write barriers required by the Go runtime.
+The current translation-unit default is fully unmanaged (`managed(0)`). A plain declared-only function is treated as an unmanaged host import. A function definition is internal C2Go code regardless of that declaration default.
+
+Managed records and pointers are opt-in. Place the public `managed` macro after the `struct` or `union` keyword so the attribute applies to the type declaration:
 
 ```c
 #include <c2go.h>
 
-managed struct Node {
+struct managed Node {
     struct Node *next;
     int value;
 };
 ```
 
-Because C2Go is managed by default, the explicit `managed` marker is most useful when documenting a public boundary.
+Managed pointers refer to memory tracked with precise Go GC metadata. Their stores receive the write barriers required by the runtime. The marker does **not** make a stack local safe to retain after its frame ends.
 
-## Unmanaged represents native memory
+## Unmanaged is outside precise pointer tracking
 
-Unmanaged pointers are raw values similar to `unsafe.Pointer`. They are used for memory owned by native allocators and at external C ABI boundaries.
+Unmanaged pointers are raw values similar to `unsafe.Pointer`. They are used where precise GC ownership and layout cannot be proven and at external C ABI boundaries. A value in Go-visible stack or object storage is still conservatively scanned and kept alive, but it does not carry the precise managed-AS1 write-barrier contract.
 
 ```c
-unmanaged struct RawBuffer {
+struct unmanaged RawBuffer {
     void *data;
     long length;
 };
 ```
 
-Ordinary `malloc`, `calloc`, `realloc`, and `free` continue to operate on an unmanaged C heap. They are not silently rewritten to Go allocation.
+Ordinary `malloc`, `calloc`, `realloc`, and `free` retain manually released, unmanaged C semantics; the compiler does not rewrite them into typed `gc_malloc`. The current c2go-libc implementation uses Go `[]byte` backing storage and an internal registry to keep each block alive until `free`. The payload is not scanned for managed pointers, so it is neither a substitute for typed managed allocation nor the host system allocator.
 
 ## Set a region default
 
-Use pragmas when adapting a group of declarations:
+Use pragmas when adapting a group of declarations. The managed form requires a numeric bitmask: function declarations = `1`, pointers = `2`, records = `4`.
+
+```c
+#pragma c2go managed(7) push
+struct Node { struct Node *next; int value; };
+int package_internal(int); // declaration is an internal C2Go reference
+#pragma c2go pop
+```
+
+The parser requires the literal integer—`managed(C2GO_FUNC | C2GO_PTR)` is not accepted. An unmanaged region is the `0` shorthand:
 
 ```c
 #pragma c2go unmanaged push
@@ -51,23 +68,24 @@ extern int native_open(struct NativeHeader *);
 #pragma c2go unmanaged pop
 ```
 
-Prefer the narrowest practical region. A broad unmanaged region makes accidental loss of GC precision harder to review.
+Prefer the narrowest practical region. A broad managed region makes lifetime assumptions hard to review; a broad unmanaged region makes loss of GC precision easy to miss.
 
 ## Warnings for lossy conversions
 
 Some crossings remain representable but lose precise tracking. The compiler warns when you:
 
 - pass, store, or return a managed pointer in unmanaged form;
-- convert a managed pointer to an integer; or
-- store the address of a stack local into a managed heap root.
+- convert a managed pointer to an integer.
 
-These warnings are in `-Wc2go-managed-as1`. During migration you can inspect them as warnings; for maintained code, prefer:
+These lossy address-space warnings are in `-Wc2go-managed-as1`. During migration you can inspect them as warnings; for maintained code, prefer:
 
 ```sh
 -Werror=c2go-managed-as1
 ```
 
 Disabling the warning does not make the conversion precise.
+
+Stack-address retention has a separate default-on warning, `-Wc2go-managed-stack-escape`. It only catches direct source patterns; use `-Werror=c2go-managed-stack-escape` **and** the standalone [whole-program stack escape audit](/en/docs/stack-escape-audit/).
 
 ## Errors for unsound layouts
 
@@ -82,6 +100,6 @@ Do not work around these errors with integer casts. Redesign the boundary: keep 
 
 ## Boundary rule of thumb
 
-Use managed memory for data that lives with Go objects or survives across Go calls. Use unmanaged memory only when a native API owns the allocation or requires a native pointer representation. Make every crossing visible in declarations.
+Use managed heap allocation for data that lives with Go objects or survives across Go calls. Do not confuse a managed type with automatic escape promotion: never retain the address of a C stack local. Use unmanaged memory when a native API owns the allocation or requires a native pointer representation, and make every crossing visible in declarations.
 
 Next, allocate a typed managed object with [GC-aware allocation](/en/docs/gc-allocation/).

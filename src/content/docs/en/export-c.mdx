@@ -3,11 +3,13 @@ title: Export C to Go
 description: Expose defined C functions and managed records as generated Go APIs.
 locale: en
 section: concepts
-order: 7
+order: 8
 release: v0.20260729.0-rc.5
 sourceLinks:
-  - label: Exporting C functions and structs
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#46-export-c-to-go
+  - label: Export naming and public macros
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/lib/Headers/c2go.h#L40-L79
+  - label: Export redeclaration checks
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/test/Sema/c2go-extern-redecl-consistency.c
 ---
 
 `c2go_extern` exports a **defined** C function through the generated package. Managed record metadata lets `c2go-bind` expose a matching Go-visible layout.
@@ -16,22 +18,26 @@ sourceLinks:
 
 ```c
 #include <c2go.h>
+#include <stddef.h>
+#include <stdint.h>
 
-c2go_extern long sum(const long *values, long count) {
-    long total = 0;
-    for (long i = 0; i < count; ++i) {
+c2go_extern int64_t sum(const int64_t *values, size_t count) {
+    int64_t total = 0;
+    for (size_t i = 0; i < count; ++i) {
         total += values[i];
     }
     return total;
 }
 ```
 
-The default Go export name capitalizes the first C character: `sum` becomes `Sum`. The package path is the value supplied to both `-fc2go-package` and `c2go-bind --pkg`.
+Prefer fixed-width integers in public APIs. `long` is 64 bits on 64-bit Linux and macOS targets but remains 32 bits on 64-bit Windows; do not use it for a cross-platform Go API unless that difference is intentional.
 
-Use the raw attribute form with `C2GO_KEEPCASE` only when exact spelling is part of an existing contract:
+The default Go export name converts each underscore-separated segment to CamelCase and removes the underscores: `sum` becomes `Sum`, `is_upper` becomes `IsUpper`, and `sqlite3_open` becomes `Sqlite3Open`. The package path is the value supplied to both `-fc2go-package` and `c2go-bind --pkg`.
+
+Use `c2go_extern_as(C2GO_KEEPCASE)` only when exact spelling is part of an existing contract:
 
 ```c
-__attribute__((c2go_extern(C2GO_KEEPCASE)))
+c2go_extern_as(C2GO_KEEPCASE)
 int ParseID(const char *text) { /* ... */ }
 ```
 
@@ -40,7 +46,7 @@ Declarations and definitions must agree. Put `c2go_extern` on the first declarat
 ## Export a managed record
 
 ```c
-managed struct Point {
+struct managed Point {
     double x;
     double y;
 };

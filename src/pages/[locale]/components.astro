@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import Icon from "@/components/Icon.astro";
+import SafetyNotice from "@/components/SafetyNotice.astro";
 import { release } from "@/data/release";
 import type { Locale } from "@/data/navigation";
 
@@ -50,6 +51,7 @@ const details = {
         }</span
       >
     </header>
+    <SafetyNotice locale={locale} />
     <div class="component-list">
       {
         release.components.map((component, index) => (

@@ -3,26 +3,26 @@ title: Native libraries
 description: Import host C ABI symbols while keeping the managed boundary explicit.
 locale: en
 section: interop
-order: 9
+order: 10
 release: v0.20260729.0-rc.5
 sourceLinks:
-  - label: Unmanaged extern imports
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#44-call-external-c-libraries-unmanaged-extern-imports
+  - label: Unmanaged import manifest test
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/test/CodeGen/c2go-unmanaged-extern-manifest.c
   - label: c2go-bind linker options
     url: https://github.com/c2gohq/c2go_bind/blob/v0.20260729.0-rc.5/README.md#usage
 ---
 
-A declaration marked `unmanaged extern` imports a real symbol from a `.so`, `.dylib`, or `.dll`. Calls cross from C2Go's managed execution model through the host C ABI.
+A declared-only function is an unmanaged host import by default in the current implementation. Spell `unmanaged extern` explicitly at native API boundaries: it documents intent and makes callback parameters receive the host-callback type checks. The symbol is resolved from a `.so`, `.dylib`, or `.dll` through the host C ABI.
 
 ## Declare an import
 
 ```c
 #include <c2go.h>
 
-unmanaged extern double cos(double value);
+unmanaged extern double vendor_scale(double value);
 
-c2go_extern double cosine(double value) {
-    return cos(value);
+c2go_extern double scaled_value(double value) {
+    return vendor_scale(value);
 }
 ```
 
@@ -39,7 +39,7 @@ c2go-bind \
   --pkg=example.com/demo/native \
   --out=native \
   --sidecar=native.json \
-  -l m \
+  -l vendor \
   -L /opt/example/lib \
   native.s
 ```
@@ -55,7 +55,7 @@ The wrapper handles calling convention and runtime transitions; it does not inve
 - whether the buffer can contain managed pointers; and
 - which side releases it.
 
-If an external library retains a buffer, native unmanaged allocation is the conservative default. Passing a managed pointer across the boundary can produce a lossy-conversion warning and requires an explicit lifetime design.
+If an external library retains a buffer, follow that library's required allocator and release function, or use a stable handle. Do not assume c2go-libc's `malloc` is the host system allocator. Passing a managed pointer across the boundary can produce a lossy-conversion warning and requires an explicit lifetime design.
 
 ## Supported call shapes
 
@@ -63,6 +63,6 @@ Scalar, pointer, `float`, and `double` imports are supported on the current Unix
 
 ## Direct calls versus function pointers
 
-Calling `cos(value)` automatically uses the generated host bridge. If you need a C2Go-callable function pointer, use `c2go_callout(cos)`. If you need the raw native address to pass back to another native API, use `&cos`; do not call that raw address directly from C2Go.
+Calling `vendor_scale(value)` automatically uses the generated host bridge. If you need a C2Go-callable function pointer, use `c2go_callout(vendor_scale)`. If you need the raw native address to pass back to another native API, use `&vendor_scale`; do not call that raw address directly from C2Go.
 
 The next chapter explains both directions in detail through [callbacks](/en/docs/callbacks/).

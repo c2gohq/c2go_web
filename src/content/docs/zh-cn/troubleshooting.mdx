@@ -3,11 +3,13 @@ title: 故障排查
 description: 分离编译器、binder、Go ABI、runtime 与平台问题，逐层定位失败。
 locale: zh-cn
 section: build
-order: 16
+order: 17
 release: v0.20260729.0-rc.5
 sourceLinks:
-  - label: 已知限制
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#8-已知限制与约束
+  - label: 栈逃逸前端诊断
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/test/Sema/c2go-managed-stack-escape.c
+  - label: 栈逃逸 LTO 门禁
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/llvm/test/tools/c2go-lto/escape-audit-gate.test
   - label: c2go-bind 环境要求
     url: https://github.com/c2gohq/c2go_bind/blob/v0.20260729.0-rc.5/README.zh-CN.md#环境要求
 ---
@@ -46,6 +48,12 @@ managed-to-unmanaged call、store 或 return warning 表示丢失精确 GC 跟�
 
 迁移 warning 审核完成后，CI 中建议启用 `-Werror=c2go-managed-as1`。
 
+## 栈指针被堆或全局状态保留
+
+**现象：**出现 `-Wc2go-managed-stack-escape`、`c2go-lto: stack->heap`，某个指针在函数调用后失效，或程序在栈增长后发生 runtime fault。
+
+不能静默忽略这个 finding。应改为带正确类型信息的 `gc_malloc` storage、由 native API 指定 allocator 且释放责任明确的 storage，或稳定 handle。前端只能捕获直接语法；必须对每个 translation unit 的 bitcode 单独运行 `c2go-lto`。普通 driver 构建采用 nonfatal 策略，不等于审计干净。完整流程见[栈指针逃逸安全](/zh-cn/docs/stack-escape-audit/)。
+
 ## 无法解析原生符号
 
 确认声明是 `unmanaged extern`、符号确实被引用，且 binder 收到正确的 `-l` 与 `-L`。检查动态库架构与 target 是否一致；Windows 还要核对精确导出符号拼写。
@@ -58,7 +66,7 @@ managed-to-unmanaged call、store 或 return warning 表示丢失精确 GC 跟�
 
 保留精确的生成 `.go`、`.s`、manifest、工具版本、target triple 和 Go stack trace。把问题缩减到最小函数，并分别使用 `-O0` 与 `-O2` 复现。只在一个优化级别失败是重要 compiler evidence，不应在没有回归测试的情况下静默发布另一个级别。
 
-检查 pointer ownership、stack-address escape、inline assembly clobber 和跨 native boundary 的调用。compiler test 通过不能替代使用生成 package 的端到端 `go test`。
+检查 pointer ownership、独立 stack-address escape 审计、inline assembly clobber 和跨 native boundary 的调用。compiler test 通过不能替代使用生成 package 的端到端 `go test`。
 
 ## 有效的问题报告
 

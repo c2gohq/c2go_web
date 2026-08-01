@@ -3,11 +3,13 @@ title: 数据类型与 errno
 description: 使用与 Go 兼容的 aggregate 布局、variant 和 per-goroutine errno。
 locale: zh-cn
 section: interop
-order: 11
+order: 12
 release: v0.20260729.0-rc.5
 sourceLinks:
-  - label: Go 内建 aggregate 类型
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#48-go-内建聚合类型
+  - label: 内建类型与 errno 契约
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/lib/Headers/c2go.h#L239-L285
+  - label: Variant 表示测试
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/test/CodeGen/c2go-variant-manifest.c
 ---
 
 C2Go 为少量 Go aggregate 值定义了 C 表示。在 64 位 target 上，这些布局可以按值跨越边界。
@@ -23,7 +25,7 @@ C2Go 为少量 Go aggregate 值定义了 C 表示。在 64 位 target 上，这�
 
 `__c2go_intptr` 是这些定义使用的、与指针同宽的有符号 Go `int`。
 
-这些值描述 ABI 布局，不等于完整 Go 语言语义。特别是 C2Go 会拒绝通过 `c2go_iface` 动态调用 interface method，因为没有静态具名的 Go ABI symbol 可以调用。
+这些值只描述 ABI 布局，不等于完整 Go 语言语义。当前 C2Go 没有为 `c2go_iface` 提供动态 interface method dispatch 的 C 语法或辅助 API；需要调用某个方法时，应在 Go 侧提供具名 wrapper，再用 `c2go_linkname` 绑定这个静态符号。
 
 ## 多返回值
 
@@ -47,10 +49,10 @@ extern struct ReadResult go_read(c2go_string path)
 `c2go_variant` 请求一种 Go GC 能推理的表示：
 
 ```c
-union Number {
+union __attribute__((c2go_variant)) Number {
     int integer;
     float real;
-} __attribute__((c2go_variant));
+};
 ```
 
 该属性只适用于 union。无法安全消歧的重叠指针成员会被拒绝；它并不允许任意 pointer punning。
@@ -72,6 +74,6 @@ int parse_positive(int value) {
 }
 ```
 
-C2Go 会通过 `__c2go_errno_ptr()` 解析它，让每个 goroutine 拥有自己的逻辑 errno 状态，而不是共享一个进程级全局整数。
+C2Go 会通过标准的 `__errno_location()` accessor 解析它；该符号链接到 `c2go_libc.ErrnoPtr`。因此每个 goroutine 都有自己的逻辑 errno 状态，而不是共享一个进程级全局整数。
 
 接下来进入项目级输出：[多文件项目与 LTO](/zh-cn/docs/multi-file-lto/)。

@@ -3,7 +3,7 @@ title: Inline assembly
 description: Use Clang's existing call-free inline assembly while respecting Go stack and GC rules.
 locale: en
 section: build
-order: 13
+order: 14
 release: v0.20260729.0-rc.5
 sourceLinks:
   - label: C2Go inline-assembly regression test
@@ -40,6 +40,8 @@ Non-empty call-free instructions use the normal Clang constraint and target mach
 
 The source remains target-specific. Guard instructions, register constraints, and clobbers exactly as you would in portable Clang C.
 
+Plan 9 output does not necessarily preserve the GNU assembly mnemonic. For example, the current backend may spell AArch64 `yield` as a `WORD` and x86 `pause` as a sequence of `BYTE` directives. Validate the final encoding rather than searching only for the source mnemonic.
+
 ## Why call-free matters
 
 LLVM models inline assembly as a `CallBase`, but a supported inline-asm statement is not a machine `CALL` or `BL` and cannot enter a callee's Go `morestack` prologue. C2Go therefore marks it GC-leaf and does not create a safepoint or stackmap for the statement itself.
@@ -65,7 +67,7 @@ If assembly must call functions, own a native stack frame, or expose a stable C 
 1. Confirm the template is call-free.
 2. Declare every input, output, and clobber.
 3. Test each target independently.
-4. Inspect generated Plan 9 assembly for the intended instruction and stack addressing.
+4. Inspect generated Plan 9 assembly for the intended instruction encoding and stack addressing.
 5. Add an end-to-end Go test, not only an LLVM IR test.
 
 See the [CLI reference](/en/docs/cli-reference/) for the flags used to retain and inspect compiler outputs.

@@ -3,11 +3,13 @@ title: 命令行参考
 description: c2go-clang、c2go-lto 与 c2go-bind 的实用参数参考。
 locale: zh-cn
 section: build
-order: 14
+order: 15
 release: v0.20260729.0-rc.5
 sourceLinks:
-  - label: 编译器参数
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#5-c2go-clang-命令行
+  - label: 编译器 option 定义
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/include/clang/Options/Options.td#L3289-L3317
+  - label: c2go-lto option 定义
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/llvm/tools/c2go-lto/c2go-lto.cpp#L153-L193
   - label: Binder 参数
     url: https://github.com/c2gohq/c2go_bind/blob/v0.20260729.0-rc.5/README.zh-CN.md#用法
 ---
@@ -18,7 +20,7 @@ sourceLinks:
 
 | 参数                               | 含义                                              |
 | ---------------------------------- | ------------------------------------------------- |
-| `-fc2go`                           | 开启 managed-by-default C 与 Go ABI lowering      |
+| `-fc2go`                           | 开启 C2Go 语言扩展与 Go ABI lowering              |
 | `--target=<triple>`                | 选择机器架构、OS data model 与 Go ABI environment |
 | `-fc2go-package=<path>`            | 符号命名使用的 Go package path；默认 `main`       |
 | `-fc2go-emit-plan9-asm=<file>`     | 输出 Plan 9 汇编                                  |
@@ -33,23 +35,25 @@ c2go-clang --target=x86_64-unknown-linux-goabi \
   -fc2go -fc2go-package=example.com/acme/mypkg -O2 \
   -fc2go-emit-plan9-asm=out.s \
   -fc2go-emit-manifest=out.json \
-  -c -o out.o input.c
+  input.c
 ```
 
 高级内部 knob 通过 `-mllvm -<flag>` 传入，包括 extern-wrapper fallback、选择性关闭 pass 和 cooperative loop-poll 间隔。应把它们看作诊断控制，而不是 package API。
 
 ## c2go-lto
 
-| 参数                              | 含义                                  |
-| --------------------------------- | ------------------------------------- |
-| `--c2go-emit-asm=<file>`          | 输出合并的 Plan 9 汇编                |
-| `--c2go-emit-manifest=<file>`     | 输出合并 manifest                     |
-| `--c2go-emit-archive=<file>`      | 把汇编与 manifest 打包为 `ar` archive |
-| `--c2go-escape-nonfatal`          | 报告逃逸但不以状态 1 退出             |
-| `--c2go-lto-inline[=0]`           | 开启或关闭跨单元内联                  |
-| `--c2go-andersen-field-sensitive` | 开启 field-sensitive 逃逸分析         |
-| `--c2go-escape-dedup`             | 合并重复逃逸报告                      |
-| `--c2go-print-stats`              | 打印管线统计                          |
+| 参数                              | 含义                                   |
+| --------------------------------- | -------------------------------------- |
+| `--c2go-emit-asm=<file>`          | 输出合并的 Plan 9 汇编                 |
+| `--c2go-emit-manifest=<file>`     | 输出合并 manifest                      |
+| `--c2go-emit-archive=<file>`      | 把汇编与 manifest 打包为 `ar` archive  |
+| `--c2go-escape-nonfatal`          | 抑制逃逸报告并返回成功；只用于受控诊断 |
+| `--c2go-lto-inline[=0]`           | 开启或关闭跨单元内联                   |
+| `--c2go-andersen-field-sensitive` | 开启 field-sensitive 逃逸分析          |
+| `--c2go-escape-dedup`             | 合并重复逃逸报告                       |
+| `--c2go-print-stats`              | 打印管线统计                           |
+
+独立 `c2go-lto` 才是栈指针逃逸的发布门禁：不要使用 `--c2go-escape-nonfatal`，并要求退出码为 `0`。当前版本的普通 Clang driver 不会强制这个门禁。详见[栈指针逃逸安全](/zh-cn/docs/stack-escape-audit/)。
 
 ## c2go-bind
 

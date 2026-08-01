@@ -3,11 +3,11 @@ title: Hello World
 description: Compile one C function into a Go package and call it from a Go test.
 locale: en
 section: start
-order: 3
+order: 4
 release: v0.20260729.0-rc.5
 sourceLinks:
-  - label: SDK quick start
-    url: https://github.com/c2gohq/c2go_toolchain/blob/v0.20260729.0-rc.5/SDK-README.md#quick-start
+  - label: C2Go driver regression test
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/test/Driver/c2go-multifile.c
   - label: c2go-bind usage
     url: https://github.com/c2gohq/c2go_bind/blob/v0.20260729.0-rc.5/README.md#usage
 ---
@@ -19,6 +19,7 @@ This walkthrough compiles one C addition function into a Go package and calls it
 ```sh
 mkdir hello-c2go
 cd hello-c2go
+mkdir .c2go
 go mod init example.com/hello-c2go
 go get github.com/c2gohq/c2go_libc@v0.20260729.0-rc.5
 ```
@@ -31,7 +32,7 @@ export C2GO_TARGET=aarch64-apple-darwin
 
 ## 2. Write your C function
 
-Create `input.c`:
+Create `.c2go/input.c`:
 
 ```c
 #include <stdint.h>
@@ -42,7 +43,11 @@ c2go_extern int add(int a, int b) {
 }
 ```
 
-`c2go_extern` marks a **defined** C function for export. The default generated Go name capitalizes the first character, so `add` becomes `Add`.
+`c2go_extern` marks a **defined** C function for export. The default Go name is CamelCase by underscore-separated segment: `add` becomes `Add`, and `sqlite3_open` becomes `Sqlite3Open`.
+
+C `int` remains 32 bits on these 64-bit targets, so the generated signature is `func Add(a, b int32) int32`, not machine-word-sized Go `int`. The test's `20` and `22` are untyped constants and are accepted directly.
+
+Keep C source and intermediate compiler outputs in the hidden `.c2go/` directory. The Go command rejects ordinary `.c` files in a package directory when cgo is not enabled; dot-prefixed directories are ignored by package discovery.
 
 ## 3. Compile with c2go-clang
 
@@ -51,12 +56,12 @@ c2go-clang --target="$C2GO_TARGET" \
   -fc2go \
   -fc2go-package=example.com/hello-c2go/translated \
   -O2 \
-  -fc2go-emit-plan9-asm=translated.s \
-  -fc2go-emit-manifest=translated.json \
-  -c -o translated.o input.c
+  -fc2go-emit-plan9-asm=.c2go/translated.s \
+  -fc2go-emit-manifest=.c2go/translated.json \
+  .c2go/input.c
 ```
 
-The important outputs are `translated.s` and `translated.json`. `translated.o` is incidental to this pipeline.
+The compiler writes `.c2go/translated.s` and `.c2go/translated.json`. This emit path does not produce a usable `translated.o` object file.
 
 ## 4. Generate the Go package
 
@@ -65,8 +70,8 @@ mkdir -p translated
 c2go-bind \
   --pkg=example.com/hello-c2go/translated \
   --out=translated \
-  --sidecar=translated.json \
-  translated.s
+  --sidecar=.c2go/translated.json \
+  .c2go/translated.s
 ```
 
 The output directory now contains generated Go declarations, assembly, ABI guards, runtime glue, and generated-code licensing records. Keep those licensing files when redistributing the generated package.
@@ -102,6 +107,7 @@ Expected result:
 
 ```text
 ok  example.com/hello-c2go
+?   example.com/hello-c2go/translated  [no test files]
 ```
 
 ## What just happened

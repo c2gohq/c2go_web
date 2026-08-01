@@ -3,13 +3,15 @@ title: GC-aware allocation
 description: Allocate typed C objects on the Go heap and preserve their pointer layout.
 locale: en
 section: concepts
-order: 6
+order: 7
 release: v0.20260729.0-rc.5
 sourceLinks:
   - label: GC allocation and type information
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#41-gc-allocation
-  - label: c2go-libc repository
-    url: https://github.com/c2gohq/c2go_libc
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/lib/Headers/c2go.h#L120-L149
+  - label: c2go-libc typed GC allocator
+    url: https://github.com/c2gohq/c2go_libc/blob/v0.20260729.0-rc.5/gc_malloc.go
+  - label: c2go-libc malloc implementation
+    url: https://github.com/c2gohq/c2go_libc/blob/v0.20260729.0-rc.5/malloc.go
 ---
 
 `gc_malloc` allocates zeroed memory on the Go heap. Unlike ordinary C allocation, it accepts runtime type information so the collector knows which machine words contain pointers.
@@ -18,8 +20,10 @@ sourceLinks:
 
 ```c
 #include <c2go.h>
+#include <stddef.h>
+#include <stdint.h>
 
-managed struct Node {
+struct managed Node {
     struct Node *next;
     int value;
 };
@@ -29,6 +33,9 @@ struct Node *new_node(int value) {
         c2go_typeinfo(struct Node),
         sizeof(struct Node)
     );
+    if (node == NULL) {
+        return NULL;
+    }
     node->value = value;
     return node;
 }
@@ -37,6 +44,8 @@ struct Node *new_node(int value) {
 `c2go_typeinfo(struct Node)` is a compiler builtin exposed as a macro. It produces the Go runtime type descriptor for that named managed record. You do not write or register the pointer bitmap by hand.
 
 There is no matching `free`: the Go GC reclaims the object after it becomes unreachable.
+
+Heap allocation is also the required rewrite when a value must outlive its C stack frame. Never store `&local` in this object; C2Go does not automatically move that local to the heap. See [Stack escape safety](/en/docs/stack-escape-audit/).
 
 ## Allocate an array
 
@@ -52,6 +61,8 @@ struct Node *nodes = gc_malloc_array(
 
 The runtime repeats the element pointer bitmap across the allocation, analogous to allocating a Go slice backing array.
 
+The current inline helper directly computes `elem_size * count`; it does not check multiplication overflow for the caller. For untrusted lengths, first validate `count <= SIZE_MAX / elem_size` and check the returned pointer for `NULL`.
+
 ## Allocate a pointer-free blob
 
 Passing `NULL` as type information creates memory that the GC does not scan for pointers:
@@ -64,15 +75,15 @@ Only do this when the allocation will never contain managed pointers. Hiding a m
 
 ## Do not mix ownership models
 
-| Allocator                       | World            | Release      |
-| ------------------------------- | ---------------- | ------------ |
-| `gc_malloc` / `gc_malloc_array` | managed Go heap  | automatic GC |
-| `malloc` / `calloc` / `realloc` | unmanaged C heap | `free`       |
+| Allocator                       | World                                   | Release      |
+| ------------------------------- | --------------------------------------- | ------------ |
+| `gc_malloc` / `gc_malloc_array` | typed managed Go heap                   | automatic GC |
+| `malloc` / `calloc` / `realloc` | c2go-libc unmanaged C-semantics storage | `free`       |
 
-Never call `free` on a Go-heap pointer, and do not assume a native library can retain a managed pointer indefinitely. If a native API takes ownership, allocate native storage and copy the required data, or design an explicit handle-based boundary.
+Never call `free` on a typed Go-heap pointer, and do not assume a native library can retain a managed pointer indefinitely. If a native API takes ownership, use the allocator that API explicitly requires and copy the data, or design a stable handle boundary. c2go-libc's `malloc` is not the host system `malloc`.
 
 ## Type information constraints
 
 `c2go_typeinfo` requires a named, complete record type. Anonymous records and reserved runtime identifiers are rejected. Managed record layout follows Go-compatible rules, so packed layout and field-specific alignment overrides are not available.
 
-Next, make a managed C function and record visible as a Go API in [Export C to Go](/en/docs/export-c/).
+Next, make a C2Go function and managed record visible as a Go API in [Export C to Go](/en/docs/export-c/).

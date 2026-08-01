@@ -15,7 +15,8 @@ interface Props {
     | "link"
     | "box"
     | "layers"
-    | "terminal";
+    | "terminal"
+    | "warning";
   size?: number;
 }
 
@@ -167,6 +168,14 @@ const { name, size = 20 } = Astro.props;
           <rect x="3" y="4" width="18" height="16" rx="2" />
           <path d="m7 9 3 3-3 3M13 15h4" />
         </>
+      </>
+    )
+  }
+  {
+    name === "warning" && (
+      <>
+        <path d="M12 3 2.8 20h18.4L12 3Z" />
+        <path d="M12 9v5M12 17.5v.1" />
       </>
     )
   }

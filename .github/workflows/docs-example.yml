@@ -43,13 +43,13 @@ jobs:
             -fc2go \
             -fc2go-package=example.com/hello-c2go/translated \
             -O2 \
-            -fc2go-emit-plan9-asm=translated.s \
-            -fc2go-emit-manifest=translated.json \
-            -c -o translated.o input.c
-          mkdir translated
+            -fc2go-emit-plan9-asm=.c2go/translated.s \
+            -fc2go-emit-manifest=.c2go/translated.json \
+            .c2go/input.c
+          mkdir -p translated
           c2go-bind \
             --pkg=example.com/hello-c2go/translated \
             --out=translated \
-            --sidecar=translated.json \
-            translated.s
+            --sidecar=.c2go/translated.json \
+            .c2go/translated.s
           go test ./...

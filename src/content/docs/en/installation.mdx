@@ -3,7 +3,7 @@ title: Install the SDK
 description: Download, verify, and configure the coordinated C2Go SDK and runtime module.
 locale: en
 section: start
-order: 2
+order: 3
 release: v0.20260729.0-rc.5
 sourceLinks:
   - label: SDK README
@@ -29,11 +29,14 @@ The release archive is a relocatable native SDK. It contains the three command-l
 | `windows-amd64` | `x86_64-pc-windows-goabi`     |
 | `macos-arm64`   | `aarch64-apple-darwin`        |
 
-Download the archive and its `.sha256` sidecar from the [release page](https://github.com/c2gohq/c2go_toolchain/releases/tag/v0.20260729.0-rc.5). The combined checksum file can be checked with:
+Download the archive and its same-named `.sha256` sidecar from the [release page](https://github.com/c2gohq/c2go_toolchain/releases/tag/v0.20260729.0-rc.5), then verify only the platform archive you downloaded:
 
 ```sh
-sha256sum --check SHA256SUMS
+archive=c2go-toolchain-v0.20260729.0-rc.5-linux-amd64.tar.gz
+sha256sum --check "$archive.sha256"
 ```
+
+If you downloaded every release archive, `SHA256SUMS` can verify the complete set at once. On macOS, use `shasum -a 256 -c "$archive.sha256"`. On Windows PowerShell, compute the hash with `Get-FileHash -Algorithm SHA256` and compare it with the sidecar.
 
 Do not skip verification: this release is not signed.
 

@@ -1,0 +1,40 @@
+---
+import Icon from "./Icon.astro";
+import { docsPath, type Locale } from "@/data/navigation";
+
+interface Props {
+  locale: Locale;
+  context?: "home" | "docs";
+}
+
+const { locale, context = "docs" } = Astro.props;
+const cn = locale === "zh-cn";
+const copy = cn
+  ? {
+      eyebrow: "当前关键限制",
+      title: "栈指针不能逃逸到堆",
+      body: "C2Go 不会像 Go 编译器一样，把地址已逃逸的 C 栈变量自动提升到堆。将 &local 或间接得到的栈指针保存到长期存活的堆或全局状态，会产生悬空指针。前端 warning 只覆盖部分直接 managed-field 写法；发布前必须单独运行 c2go-lto 全程序逃逸审计，并把报告清零。",
+      action: "查看强制审计流程",
+    }
+  : {
+      eyebrow: "Critical current limitation",
+      title: "Stack pointers must not escape to the heap",
+      body: "C2Go does not promote an address-taken C stack local to the heap as the Go compiler does. Saving &local, or an indirectly propagated stack pointer, in long-lived heap or global state can leave a dangling pointer. Frontend warnings cover only some direct managed-field stores; run the standalone c2go-lto whole-program escape audit before release and reach a clean report.",
+      action: "Read the required audit workflow",
+    };
+---
+
+<aside
+  class:list={["safety-notice", context === "home" && "on-home"]}
+  aria-label={copy.eyebrow}
+>
+  <span class="safety-icon"><Icon name="warning" size={24} /></span>
+  <div>
+    <small>{copy.eyebrow}</small>
+    <strong>{copy.title}</strong>
+    <p>{copy.body}</p>
+  </div>
+  <a href={docsPath(locale, "stack-escape-audit")}
+    >{copy.action}<Icon name="arrow" size={16} /></a
+  >
+</aside>

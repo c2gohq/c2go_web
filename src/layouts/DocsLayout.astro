@@ -2,6 +2,7 @@
 import BaseLayout from "./BaseLayout.astro";
 import DocsSidebar from "@/components/DocsSidebar.astro";
 import Icon from "@/components/Icon.astro";
+import SafetyNotice from "@/components/SafetyNotice.astro";
 import {
   docsNavigation,
   flatDocs,
@@ -70,6 +71,7 @@ const currentSection = docsNavigation.find((section) =>
         <a href={release.releaseUrl}>{release.version}</a>
         <p>{t.versionNotice}</p>
       </div>
+      <SafetyNotice locale={locale} />
       <article class="docs-article">
         <header class="docs-title">
           <p>{currentSection?.title[locale]}</p>

@@ -14,6 +14,13 @@ export const docsNavigation: NavSection[] = [
     items: [
       { slug: "overview", title: { en: "Overview", "zh-cn": "项目概览" } },
       {
+        slug: "stack-escape-audit",
+        title: {
+          en: "Stack escape safety",
+          "zh-cn": "栈指针逃逸安全",
+        },
+      },
+      {
         slug: "installation",
         title: { en: "Install the SDK", "zh-cn": "安装 SDK" },
       },

@@ -3,46 +3,63 @@ title: Managed 与 unmanaged
 description: 理解 C2Go 用来保持 Go GC 健全的两个内存世界。
 locale: zh-cn
 section: concepts
-order: 5
+order: 6
 release: v0.20260729.0-rc.5
 sourceLinks:
-  - label: managed/unmanaged 模型
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#3-managed--unmanaged-世界核心心智模型
+  - label: 默认函数世界回归测试
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/test/CodeGen/c2go-func-world-default.c
+  - label: 默认 world 初始化
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/lib/Sema/Sema.cpp#L391-L400
+  - label: Pragma parser
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/lib/Parse/ParsePragma.cpp#L2295-L2357
+  - label: c2go-libc malloc 实现
+    url: https://github.com/c2gohq/c2go_libc/blob/v0.20260729.0-rc.5/malloc.go
 ---
 
-每个 C2Go 类型、对象、字段、参数和函数都属于 **managed** 或 **unmanaged** 世界。这是编译器检查的内存契约，不只是说明性标记。
+每个 C2Go record、pointer 声明与函数边界都可以携带 **managed** 或 **unmanaged** 世界。这是编译器检查的内存契约，不只是说明性标记。
 
-## Managed 是默认状态
+## Unmanaged 才是默认状态
 
-Managed 指针指向 Go 垃圾回收器跟踪的内存。写入 managed 指针时会保留精确的指针信息，并插入 Go runtime 需要的写屏障。
+当前 translation unit 的默认值是完全 unmanaged（`managed(0)`）。只有声明、没有定义的普通函数会被当作 unmanaged host import；函数定义始终是内部 C2Go 代码，不受这个声明默认值影响。
+
+Managed record 与 pointer 需要显式选择。公开宏 `managed` 必须写在 `struct` 或 `union` 关键字之后，属性才会作用于类型声明：
 
 ```c
 #include <c2go.h>
 
-managed struct Node {
+struct managed Node {
     struct Node *next;
     int value;
 };
 ```
 
-C2Go 默认就是 managed，因此显式的 `managed` 最适合用于标明公共边界。
+Managed pointer 会携带精确的 Go GC 元数据，写入时也会得到 runtime 所需的 write barrier。但这个标记**不会**把已经逃逸的栈变量自动提升到堆。
 
-## Unmanaged 表示原生内存
+## Unmanaged 不参与精确指针跟踪
 
-Unmanaged 指针是类似 `unsafe.Pointer` 的裸值，用于原生 allocator 管理的内存和外部 C ABI 边界。
+Unmanaged 指针是类似 `unsafe.Pointer` 的裸值，用于无法证明精确 GC 所有权/布局的内存和外部 C ABI 边界。值出现在 Go 可见的栈或对象中时仍会被保守扫描和保活，但它不携带 managed AS1 的精确 write-barrier 契约。
 
 ```c
-unmanaged struct RawBuffer {
+struct unmanaged RawBuffer {
     void *data;
     long length;
 };
 ```
 
-普通 `malloc`、`calloc`、`realloc` 与 `free` 仍操作 unmanaged C heap，不会被静默改写为 Go 分配。
+普通 `malloc`、`calloc`、`realloc` 与 `free` 仍提供手动释放的 unmanaged C 语义，不会被编译器改写成 typed `gc_malloc`。当前 c2go-libc 实现用 Go `[]byte` backing，并通过内部注册表保活到 `free`；payload 不按其中的 managed pointer 扫描，因此不能拿它代替 typed managed allocation，也不能把它误认为宿主系统 allocator。
 
 ## 设置一段声明的默认世界
 
-迁移一组声明时可以使用 pragma：
+迁移一组声明时可以使用 pragma。managed 形式必须提供数字 bitmask：函数声明 = `1`、pointer = `2`、record = `4`。
+
+```c
+#pragma c2go managed(7) push
+struct Node { struct Node *next; int value; };
+int package_internal(int); // 这是内部 C2Go 引用，不是 host import
+#pragma c2go pop
+```
+
+parser 只接受整数字面量，不接受 `managed(C2GO_FUNC | C2GO_PTR)`。Unmanaged 区域是 `0` 的简写：
 
 ```c
 #pragma c2go unmanaged push
@@ -51,23 +68,24 @@ extern int native_open(struct NativeHeader *);
 #pragma c2go unmanaged pop
 ```
 
-范围应尽量小。过大的 unmanaged 区域会让意外丢失 GC 精度的问题更难审核。
+范围应尽量小。过大的 managed 区域会让生命周期假设难以审核；过大的 unmanaged 区域会让 GC 精度丢失更难察觉。
 
 ## 有损转换会产生 warning
 
 某些跨界操作仍能表达，但会丢失精确跟踪。以下行为会产生 warning：
 
 - 以 unmanaged 形式传递、存储或返回 managed 指针；
-- 把 managed 指针转换成整数；
-- 把栈上局部变量地址存进 managed heap root。
+- 把 managed 指针转换成整数。
 
-这些诊断属于 `-Wc2go-managed-as1`。迁移期间可以先按 warning 检查；长期维护的代码建议提升为错误：
+这些有损 address-space 诊断属于 `-Wc2go-managed-as1`。迁移期间可以先按 warning 检查；长期维护的代码建议提升为错误：
 
 ```sh
 -Werror=c2go-managed-as1
 ```
 
 关闭 warning 并不会让转换变得精确。
+
+栈地址被长期保留使用独立的默认 warning：`-Wc2go-managed-stack-escape`。它只能覆盖直接源码形状；应同时启用 `-Werror=c2go-managed-stack-escape`，并运行独立的[全程序栈逃逸审计](/zh-cn/docs/stack-escape-audit/)。
 
 ## 不健全的布局会直接报错
 
@@ -82,6 +100,6 @@ extern int native_open(struct NativeHeader *);
 
 ## 边界选择原则
 
-与 Go 对象共同生存、或需要跨 Go 调用保留的数据使用 managed 内存。只有当原生 API 拥有分配、或明确要求原生指针表示时才使用 unmanaged，并在声明中清楚标出每一次跨界。
+与 Go 对象共同生存、或需要跨 Go 调用保留的数据应使用 managed heap 分配。不要把 managed 类型误解为自动逃逸提升：任何 C 栈局部变量的地址都不能被长期保留。只有当原生 API 拥有分配、或明确要求原生指针表示时才使用 unmanaged，并在声明中清楚标出每一次跨界。
 
 下一章使用 [GC 感知分配](/zh-cn/docs/gc-allocation/)创建带类型的 managed 对象。

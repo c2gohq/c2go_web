@@ -3,11 +3,13 @@ title: Troubleshooting
 description: Diagnose failures by separating compiler, binder, Go ABI, runtime, and platform issues.
 locale: en
 section: build
-order: 16
+order: 17
 release: v0.20260729.0-rc.5
 sourceLinks:
-  - label: Known limitations
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#8-known-limitations-and-constraints
+  - label: Stack-escape frontend diagnostic
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/test/Sema/c2go-managed-stack-escape.c
+  - label: Stack-escape LTO gate
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/llvm/test/tools/c2go-lto/escape-audit-gate.test
   - label: c2go-bind requirements
     url: https://github.com/c2gohq/c2go_bind/blob/v0.20260729.0-rc.5/README.md#requirements
 ---
@@ -46,6 +48,12 @@ Warnings about managed-to-unmanaged call, store, or return indicate loss of prec
 
 For CI, enable `-Werror=c2go-managed-as1` after migration warnings have been reviewed.
 
+## Stack pointer retained by heap or global state
+
+**Symptom:** `-Wc2go-managed-stack-escape`, `c2go-lto: stack->heap`, a pointer that changes validity after a call, or a runtime fault after stack growth.
+
+Do not silence this finding. Replace the retained stack address with correctly typed `gc_malloc` storage, storage from the allocator required by the native API with explicit release ownership, or a stable handle. The frontend only catches direct syntax; run standalone `c2go-lto` over bitcode from every translation unit. The ordinary driver build is nonfatal and is not a clean audit. Follow the complete [stack escape safety workflow](/en/docs/stack-escape-audit/).
+
 ## Native symbol cannot be resolved
 
 Confirm the declaration is `unmanaged extern`, the symbol is actually referenced, and the binder receives the correct `-l` and `-L` options. Verify the library matches the target architecture. On Windows, also check the exact exported symbol spelling.
@@ -58,7 +66,7 @@ Compare the signature with the compatibility matrix. Windows callback support in
 
 Preserve the exact generated `.go`, `.s`, manifest, tool versions, target triple, and Go stack trace. Reproduce with a minimal function and both `-O0` and `-O2`. A failure at only one optimization level is important compiler evidence; it is not a reason to silently ship the other level without a regression test.
 
-Check pointer ownership, stack-address escape, inline-assembly clobbers, and calls that cross native boundaries. A green compiler test is not a substitute for an end-to-end `go test` using the generated package.
+Check pointer ownership, the standalone stack-address escape audit, inline-assembly clobbers, and calls that cross native boundaries. A green compiler test is not a substitute for an end-to-end `go test` using the generated package.
 
 ## A useful issue bundle
 

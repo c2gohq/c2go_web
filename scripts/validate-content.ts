@@ -25,6 +25,7 @@ for (const locale of locales) {
     );
   }
 
+  const orders: number[] = [];
   for (const slug of files) {
     const filename = path.join(root, locale, `${slug}.mdx`);
     const source = await readFile(filename, "utf8");
@@ -38,11 +39,30 @@ for (const locale of locales) {
     if (!frontmatter.includes("sourceLinks:")) {
       throw new Error(`${filename}: sourceLinks is required`);
     }
+    if (source.includes("c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/")) {
+      throw new Error(
+        `${filename}: source link points at unpublished c2go_clang/docs/c2go content`,
+      );
+    }
+    const order = frontmatter.match(/^order:\s*(\d+)$/m);
+    if (!order) throw new Error(`${filename}: integer order is required`);
+    orders.push(Number(order[1]));
     if (!source.match(/^##\s+/m)) {
       throw new Error(
         `${filename}: at least one level-two heading is required`,
       );
     }
+  }
+
+  const expectedOrders = Array.from(
+    { length: expected.length },
+    (_, index) => index + 1,
+  );
+  if (
+    JSON.stringify(orders.sort((a, b) => a - b)) !==
+    JSON.stringify(expectedOrders)
+  ) {
+    throw new Error(`${locale}: document orders must be unique and contiguous`);
   }
 }
 

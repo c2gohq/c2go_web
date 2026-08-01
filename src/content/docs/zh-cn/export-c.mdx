@@ -3,11 +3,13 @@ title: 将 C 导出给 Go
 description: 把已定义的 C 函数和 managed record 暴露为生成的 Go API。
 locale: zh-cn
 section: concepts
-order: 7
+order: 8
 release: v0.20260729.0-rc.5
 sourceLinks:
-  - label: 导出 C 函数与 struct
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#46-把-c-导出给-go
+  - label: 导出命名与公开宏
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/lib/Headers/c2go.h#L40-L79
+  - label: 导出重声明检查
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/test/Sema/c2go-extern-redecl-consistency.c
 ---
 
 `c2go_extern` 会通过生成的 package 导出一个**已经定义的** C 函数。Managed record 元数据则让 `c2go-bind` 暴露与之匹配的 Go 可见布局。
@@ -16,22 +18,26 @@ sourceLinks:
 
 ```c
 #include <c2go.h>
+#include <stddef.h>
+#include <stdint.h>
 
-c2go_extern long sum(const long *values, long count) {
-    long total = 0;
-    for (long i = 0; i < count; ++i) {
+c2go_extern int64_t sum(const int64_t *values, size_t count) {
+    int64_t total = 0;
+    for (size_t i = 0; i < count; ++i) {
         total += values[i];
     }
     return total;
 }
 ```
 
-默认 Go 导出名会把 C 名称的第一个字符大写：`sum` 变为 `Sum`。package path 由 `-fc2go-package` 和 `c2go-bind --pkg` 共同指定。
+公开 API 建议使用固定宽度整数。`long` 在 Linux/macOS 64 位 target 上是 64 位，在 Windows 64 位 target 上仍是 32 位；除非这个差异就是契约的一部分，否则不要用它表达跨平台 Go API。
 
-只有现有契约确实要求保持拼写时，才使用带 `C2GO_KEEPCASE` 的原始属性形式：
+默认 Go 导出名会把每个下划线分段转换为 CamelCase，并移除下划线：`sum` 变为 `Sum`，`is_upper` 变为 `IsUpper`，`sqlite3_open` 变为 `Sqlite3Open`。package path 由 `-fc2go-package` 和 `c2go-bind --pkg` 共同指定。
+
+只有现有契约确实要求保持拼写时，才使用 `c2go_extern_as(C2GO_KEEPCASE)`：
 
 ```c
-__attribute__((c2go_extern(C2GO_KEEPCASE)))
+c2go_extern_as(C2GO_KEEPCASE)
 int ParseID(const char *text) { /* ... */ }
 ```
 
@@ -40,7 +46,7 @@ int ParseID(const char *text) { /* ... */ }
 ## 导出 managed record
 
 ```c
-managed struct Point {
+struct managed Point {
     double x;
     double y;
 };

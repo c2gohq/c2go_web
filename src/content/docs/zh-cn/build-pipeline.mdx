@@ -3,11 +3,13 @@ title: 构建管线
 description: 跟踪 C 源码如何经过 Clang、C2Go LTO、绑定生成器和 Go 工具链。
 locale: zh-cn
 section: concepts
-order: 4
+order: 5
 release: v0.20260729.0-rc.5
 sourceLinks:
-  - label: 端到端管线
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/user-guide.md#9-端到端形态一次构建长什么样
+  - label: Driver 管线回归测试
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/test/Driver/c2go-multifile.c
+  - label: 独立逃逸门禁回归测试
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/llvm/test/tools/c2go-lto/escape-audit-gate.test
   - label: c2go-bind 输入
     url: https://github.com/c2gohq/c2go_bind/blob/v0.20260729.0-rc.5/README.zh-CN.md#它在工具链中的位置
 ---
@@ -30,7 +32,9 @@ C2Go 把编译和 package 生成拆成两个阶段。理解这个边界，会让
 cc1 → LLVM bitcode → c2go-lto → output.s + output.json
 ```
 
-`-O0` 和 `-O2` 都受支持。`-O0` 会关闭寄存器 ABI 与叶子函数优化；`-O2` 才启用面向性能的管线。
+`-O0` 和 `-O2` 都受支持。`-O0` 保留以 GoABI0 栈传参数为主的简单路径，并跳过 `-O2` 才启用的跨单元内联、statepoint GC 与叶子 internal-ABI 优化；返回值 ABI 仍会跨优化级别保持一致。
+
+在当前版本里，普通 driver 会以 nonfatal 模式运行内部逃逸审计，并抑制报告；这**不是**发布安全门禁。必须为所有 translation unit 生成审计 bitcode，并按[栈指针逃逸安全](/zh-cn/docs/stack-escape-audit/)中的流程单独运行 `c2go-lto`。
 
 ## 阶段三：由 manifest 指导绑定
 
