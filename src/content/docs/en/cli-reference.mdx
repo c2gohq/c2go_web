@@ -22,7 +22,7 @@ This page summarizes the stable user-facing flags in the coordinated release. Ru
 | ---------------------------------- | ------------------------------------------------------------------ |
 | `-fc2go`                           | Enable C2Go language extensions and Go ABI lowering                |
 | `--target=<triple>`                | Select machine architecture, OS data model, and Go ABI environment |
-| `-fc2go-package=<path>`            | Go package path used for symbol names; defaults to `main`          |
+| `-fc2go-package=<path>`            | Final Go import path recorded in the artifacts; defaults to `main` |
 | `-fc2go-emit-plan9-asm=<file>`     | Write Plan 9 assembly                                              |
 | `-fc2go-emit-manifest=<file>`      | Write the JSON export manifest                                     |
 | `-fc2go-target-go-version=<lo-hi>` | Encode a supported Go version interval; upper bound is exclusive   |
@@ -57,20 +57,21 @@ Standalone `c2go-lto` is the release gate for stack-pointer escape: leave `--c2g
 
 ## c2go-bind
 
-| Option               | Meaning                                             |
-| -------------------- | --------------------------------------------------- |
-| `--pkg`              | Required final Go import path                       |
-| `--pkgname`          | Override the generated `package` clause             |
-| `--goname`           | Base name for the generated Go file                 |
-| `--out`              | Output directory; defaults to the current directory |
-| `--sidecar`          | Explicit manifest for one assembly input            |
-| `-l name` / `-L dir` | Link a native import and add probe directories      |
-| `--extern-os`        | Strict override: exactly `unix` or `windows`        |
-| `--dry-run`          | Print generated Go instead of writing files         |
-| `--go`               | Go command used for compatibility probing           |
-| `--skip-go-probe`    | Skip the Go contract probe; avoid in release builds |
-| `--version`          | Print binder version                                |
+| Option               | Meaning                                                            |
+| -------------------- | ------------------------------------------------------------------ |
+| `--pkgname`          | Override when the package name differs from the manifest path base |
+| `--goname`           | Base name for the generated Go file                                |
+| `--out`              | Output directory; defaults to the current directory                |
+| `--sidecar`          | Explicit manifest for one assembly input                           |
+| `-l name` / `-L dir` | Link a native import and add probe directories                     |
+| `--extern-os`        | Strict override: exactly `unix` or `windows`                       |
+| `--dry-run`          | Print generated Go instead of writing files                        |
+| `--go`               | Go command used for compatibility probing                          |
+| `--skip-go-probe`    | Skip the Go contract probe; avoid in release builds                |
+| `--version`          | Print binder version                                               |
 
 `c2go-bind` accepts `.s` files, manifests, C2Go `ar` archives, and multiple compatible inputs. Normal on-disk generation writes licensing records alongside the package.
+
+`--pkgname` neither overrides the import path nor participates in symbol linkage. It defaults to the final segment of manifest `pkgpath`; set it only when the actual Go package clause differs from that default.
 
 Continue with the [platform and limitation matrix](/en/docs/platforms-limitations/).

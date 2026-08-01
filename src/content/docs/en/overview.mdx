@@ -27,6 +27,8 @@ For one or more C translation units, `c2go-clang` produces:
 
 `c2go-bind` consumes the assembly and manifest and writes generated `.go` and `.s` files into a normal Go package. `go build` or `go test` completes the build.
 
+The generated package does not use `import "C"`. c2go-libc integrates a PureGo native-call bridge, so consumers can build with `CGO_ENABLED=0` and no host C compiler; only the generation step requires the C2Go toolchain.
+
 ```text
 C source
    │

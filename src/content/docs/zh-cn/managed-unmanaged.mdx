@@ -1,28 +1,43 @@
 ---
-title: Managed 与 unmanaged
-description: 理解 C2Go 用来保持 Go GC 健全的两个内存世界。
+title: 内存与 Go GC
+description: 判断一块 C 数据应由 Go GC 管理，还是继续使用普通 C 生命周期。
 locale: zh-cn
 section: guides
 order: 6
 release: v0.20260729.0-rc.5
 sourceLinks:
-  - label: 默认函数世界回归测试
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/test/CodeGen/c2go-func-world-default.c
-  - label: 默认 world 初始化
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/lib/Sema/Sema.cpp#L391-L400
-  - label: Pragma parser
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/lib/Parse/ParsePragma.cpp#L2295-L2357
+  - label: Managed pointer 回归测试
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/test/CodeGen/c2go-managed-addrspace.c
+  - label: 布局安全检查
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/test/Sema/c2go-unmanaged-record-managed-field-reject.c
   - label: c2go-libc malloc 实现
     url: https://github.com/c2gohq/c2go_libc/blob/v0.20260729.0-rc.5/malloc.go
 ---
 
-每个 C2Go record、pointer 声明与函数边界都可以携带 **managed** 或 **unmanaged** 世界。这是编译器检查的内存契约，不只是说明性标记。
+C 程序通常自己决定内存何时释放；Go 则由垃圾回收器决定对象何时可以回收。C2Go 需要知道某个 C 指针属于哪一种生命周期，否则 Go GC 可能看不到仍在使用的对象。
 
-## Unmanaged 才是默认状态
+这里的 managed/unmanaged 描述的是 GC 如何看待指针，不是一套自动 ownership 系统；谁创建、谁释放、callee 是否保留指针，仍然需要由 API 明确约定。
 
-当前 translation unit 的默认值是完全 unmanaged（`managed(0)`）。只有声明、没有定义的普通函数会被当作 unmanaged host import；函数定义始终是内部 C2Go 代码，不受这个声明默认值影响。
+阅读本章时只需要先回答两个问题：
 
-Managed record 与 pointer 需要显式选择。公开宏 `managed` 必须写在 `struct` 或 `union` 关键字之后，属性才会作用于类型声明：
+1. 这块内存由 Go GC 回收，还是由代码、系统或原生库释放？
+2. 这块内存内部是否保存了需要被 Go GC 继续跟踪的指针？
+
+## 两种内存的直观区别
+
+| 使用场景 | 选择 | 原因 |
+| --- | --- | --- |
+| 使用 `gc_malloc` 创建、需要跨 Go 调用继续存活的对象 | managed | Go GC 必须知道对象类型和内部指针位置 |
+| Go 管理的链表、树或其他含指针对象 | managed | 写入指针时需要 Go write barrier |
+| 普通 `malloc`/`free` 缓冲区 | unmanaged | 生命周期仍由 C 代码手动控制 |
+| 系统调用、动态库或第三方 C ABI 使用的结构体 | unmanaged | 必须保持原生 C 内存与 ABI 语义 |
+| 函数中的普通局部变量 | 保持默认 | 只能在当前调用期间使用，不能把地址长期保存 |
+
+当前 C2Go 默认使用普通 C 的 unmanaged 语义。只有确实需要 Go GC 跟踪的数据才应显式标为 managed。
+
+## 需要 Go GC 管理的对象
+
+下面的链表节点会保存另一个节点的指针，并且可能跨多次 Go/C 调用存活，因此将其声明为 managed：
 
 ```c
 #include <c2go.h>
@@ -31,77 +46,66 @@ struct managed Node {
     struct Node *next;
     int value;
 };
+
+struct Node *new_node(int value) {
+    struct Node *node = gc_malloc(
+        c2go_typeinfo(struct Node), sizeof(*node));
+    node->next = 0;
+    node->value = value;
+    return node;
+}
 ```
 
-Managed pointer 会携带精确的 Go GC 元数据，写入时也会得到 runtime 所需的 write barrier。但这个标记**不会**把已经逃逸的栈变量自动提升到堆。
+这里有三件事协同工作：
 
-## Unmanaged 不参与精确指针跟踪
+- `managed` 告诉编译器节点中哪些字段是 GC 指针；
+- `c2go_typeinfo(struct Node)` 提供该类型的布局；
+- `gc_malloc` 在 Go heap 上创建这个带类型的对象。
 
-Unmanaged 指针是类似 `unsafe.Pointer` 的裸值，用于无法证明精确 GC 所有权/布局的内存和外部 C ABI 边界。值出现在 Go 可见的栈或对象中时仍会被保守扫描和保活，但它不携带 managed AS1 的精确 write-barrier 契约。
+给 `node->next` 赋值时，编译器会生成 Go runtime 需要的 write barrier。仅仅写上 `managed` 不会分配内存，也不会把栈变量自动搬到堆上。
+
+## 保持普通 C 生命周期
+
+传给操作系统、动态库或现有 C API 的数据通常应保持 unmanaged：
 
 ```c
-struct unmanaged RawBuffer {
+#include <c2go.h>
+
+struct unmanaged NativeBuffer {
     void *data;
-    long length;
+    size_t length;
 };
+
+unmanaged extern int vendor_write(struct NativeBuffer *buffer);
 ```
 
-普通 `malloc`、`calloc`、`realloc` 与 `free` 仍提供手动释放的 unmanaged C 语义，不会被编译器改写成 typed `gc_malloc`。当前 c2go-libc 实现用 Go `[]byte` backing，并通过内部注册表保活到 `free`；payload 不按其中的 managed pointer 扫描，因此不能拿它代替 typed managed allocation，也不能把它误认为宿主系统 allocator。
+普通 `malloc`、`calloc`、`realloc` 和 `free` 也保留手动释放语义。不要在这类裸缓冲区中保存需要 Go GC 跟踪的 managed 指针；GC 不知道缓冲区内部的字段布局。
 
-## 设置一段声明的默认世界
+`unmanaged` 可以在接口边界上显式表达意图。对于没有标记的普通 C 类型，它也是当前默认行为。
 
-迁移一组声明时可以使用 pragma。managed 形式必须提供数字 bitmask：函数声明 = `1`、pointer = `2`、record = `4`。
+## 最常见的错误
+
+### 把局部变量地址长期保存
 
 ```c
-#pragma c2go managed(7) push
-struct Node { struct Node *next; int value; };
-int package_internal(int); // 这是内部 C2Go 引用，不是 host import
-#pragma c2go pop
+void attach(struct Node *node) {
+    struct Node local;
+    node->next = &local; // local 会随函数返回而失效
+}
 ```
 
-parser 只接受整数字面量，不接受 `managed(C2GO_FUNC | C2GO_PTR)`。Unmanaged 区域是 `0` 的简写：
+Go 不会像 Go 编译器处理 Go 源码那样，自动把这个 C 局部变量提升到 heap。源码诊断只能覆盖一部分直接写法，发布前还必须运行[栈指针逃逸审计](/zh-cn/docs/stack-escape-audit/)。
 
-```c
-#pragma c2go unmanaged push
-struct NativeHeader { void *handle; long flags; };
-extern int native_open(struct NativeHeader *);
-#pragma c2go unmanaged pop
-```
+### 混合两种内存而不说明转换
 
-范围应尽量小。过大的 managed 区域会让生命周期假设难以审核；过大的 unmanaged 区域会让 GC 精度丢失更难察觉。
+把 managed 指针写入 unmanaged 存储、转换成整数，或通过不兼容布局的类型访问，都可能让 GC 丢失指针信息。C2Go 会对此产生 warning 或 error。不要通过整数中转或关闭 warning 来绕过它；应重新设计边界，或者把数据复制到生命周期清晰的表示中。
 
-## 有损转换会产生 warning
+### 让 GC 无法识别字段位置
 
-某些跨界操作仍能表达，但会丢失精确跟踪。以下行为会产生 warning：
+包含 GC 指针的布局不能随意 packing、重叠或改变 alignment。Managed record 的特殊布局会产生警告；无法安全扫描的 unmanaged record 会被拒绝。公开此类类型前，应检查生成的 Go 类型并测试每个 target。
 
-- 以 unmanaged 形式传递、存储或返回 managed 指针；
-- 把 managed 指针转换成整数。
+## 实际选择原则
 
-这些有损 address-space 诊断属于 `-Wc2go-managed-as1`。迁移期间可以先按 warning 检查；长期维护的代码建议提升为错误：
+先保留普通 C 写法。只有当对象同时满足“由 Go heap 持有”或“内部指针必须由 Go GC 跟踪”时，才引入 managed 类型和 `gc_malloc`。与操作系统、动态库和原生 ABI 交互的内存继续保持 unmanaged，并维持明确的创建与释放关系。
 
-```sh
--Werror=c2go-managed-as1
-```
-
-关闭 warning 并不会让转换变得精确。
-
-栈地址被长期保留使用独立的默认 warning：`-Wc2go-managed-stack-escape`。它只能覆盖直接源码形状；应同时启用 `-Werror=c2go-managed-stack-escape`，并运行独立的[全程序栈逃逸审计](/zh-cn/docs/stack-escape-audit/)。
-
-## 不健全的布局会直接报错
-
-以下操作会让 GC 对内存的认知发生结构性错误，因此 C2Go 会拒绝：
-
-- 在 GC 布局不兼容的 managed 指针类型之间 bit-cast；
-- 在 unmanaged record 中放入 managed 字段；
-- 对包含 GC 扫描 data pointer 的 unmanaged record 使用 packing 或自定义 alignment；
-- 在 managed union 表示中使用无法消歧的重叠指针字段。
-
-Packed 或自定义 alignment 的 managed record 会产生 warning，而不是上述 hard error。它们生成的 Go 布局与 target 相关；作为公开类型前必须检查生成结果并测试每个 target。
-
-不要用整数转换绕过 hard layout error。应重新设计边界：让原生存储保持 unmanaged，或者明确地把数据复制到有清晰生命周期的 managed 表示。
-
-## 边界选择原则
-
-与 Go 对象共同生存、或需要跨 Go 调用保留的数据应使用 managed heap 分配。不要把 managed 类型误解为自动逃逸提升：任何 C 栈局部变量的地址都不能被长期保留。只有当原生 API 拥有分配、或明确要求原生指针表示时才使用 unmanaged，并在声明中清楚标出每一次跨界。
-
-下一章使用 [GC 感知分配](/zh-cn/docs/gc-allocation/)创建带类型的 managed 对象。
+属性、pragma bitmask 和转换诊断的完整语法放在 [C2Go 扩展速查](/zh-cn/docs/c2go-extensions/)；下一章用 [GC 感知分配](/zh-cn/docs/gc-allocation/)构造更完整的 managed 对象。

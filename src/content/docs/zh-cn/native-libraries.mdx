@@ -10,6 +10,8 @@ sourceLinks:
     url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/test/CodeGen/c2go-unmanaged-extern-manifest.c
   - label: c2go-bind 链接选项
     url: https://github.com/c2gohq/c2go_bind/blob/v0.20260729.0-rc.5/README.zh-CN.md#用法
+  - label: c2go-libc PureGo bridge
+    url: https://github.com/c2gohq/c2go_libc/blob/v0.20260729.0-rc.5/dl/dispatch_unix.go
 ---
 
 在当前实现中，只有声明、没有定义的普通函数默认就是 unmanaged host import。原生 API 边界仍应显式写成 `unmanaged extern`：它既能表达意图，也会让 callback 参数接受 host-callback 类型检查。符号会通过宿主 C ABI 从真实 `.so`、`.dylib` 或 `.dll` 解析。
@@ -36,7 +38,6 @@ c2go_extern double scaled_value(double value) {
 
 ```sh
 c2go-bind \
-  --pkg=example.com/demo/native \
   --out=native \
   --sidecar=native.json \
   -l vendor \
@@ -45,6 +46,16 @@ c2go-bind \
 ```
 
 manifest 通常会决定需要 Unix 还是 Windows dispatch glue。`--extern-os=unix|windows` 只用于受控覆盖，不应用它掩盖 target mismatch。
+
+## 无 cgo 构建
+
+C2Go 生成的是普通 Go 文件和 Plan 9 汇编，不会生成 `import "C"`。c2go-libc 在 Unix 上使用固定版本的 PureGo bridge 完成原生调用；Windows 使用对应的 syscall bridge。因此生成后的 package 可以在关闭 cgo 的环境构建：
+
+```sh
+CGO_ENABLED=0 go build ./...
+```
+
+最终构建不需要宿主 C 编译器。若程序调用外部动态库，该 `.so`、`.dylib` 或 `.dll` 在运行时仍然必须存在；无 cgo 不等于把第三方动态库静态打进程序。
 
 ## 指针仍然需要所有权规则
 

@@ -37,7 +37,6 @@ driver 将每个源码编译为 bitcode，调用 `c2go-lto`，然后输出一对
 ```sh
 mkdir -p engine
 c2go-bind \
-  --pkg=example.com/acme/engine \
   --out=engine \
   --sidecar=engine.json \
   engine.s
@@ -69,8 +68,8 @@ c2go-lto parser.bc runtime.bc storage.bc \
 `c2go-bind` 也可以合并多个汇编输入，或直接读取 C2Go archive：
 
 ```sh
-c2go-bind --pkg=example.com/acme/engine --out=engine a.s b.s
-c2go-bind --pkg=example.com/acme/engine --out=engine engine.a
+c2go-bind --out=engine a.s b.s
+c2go-bind --out=engine engine.a
 ```
 
 binder 会精确去重，并拒绝符号、类型、全局变量、linkname、GC mask、callback、target、版本或 ABI epoch 冲突。

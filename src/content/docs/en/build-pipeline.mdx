@@ -40,7 +40,7 @@ The ordinary driver invokes its internal escape audit in nonfatal mode and suppr
 
 The assembly alone is not enough. The JSON manifest carries information the Go source generator cannot recover reliably from text assembly, including:
 
-- package and exported symbol names;
+- Go import path and exported symbol names;
 - target `GOOS` and `GOARCH`;
 - supported Go version range and C2Go ABI epoch;
 - record layouts, fields, and GC pointer masks;
@@ -57,16 +57,18 @@ There is no C compiler involved at application startup.
 
 ## Keep these values coordinated
 
-| Value                                  | Why it must match                                           |
-| -------------------------------------- | ----------------------------------------------------------- |
-| `-fc2go-package` and `c2go-bind --pkg` | Both define the final Go import path and symbol namespace   |
-| assembly and manifest                  | They describe the same compiled unit                        |
-| target triple and Go build target      | Plan 9 assembly is OS/architecture-specific                 |
-| compiler, binder, and libc release     | Manifest and runtime ABI are versioned together             |
-| Go toolchain version                   | Stack-frame and ABI contracts are checked during generation |
+| Value                              | Why it must match                                                                                                    |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `-fc2go-package`                   | The single source of the final Go import path; also identifies same-package linknames and is carried by the manifest |
+| assembly and manifest              | They describe the same compiled unit                                                                                 |
+| target triple and Go build target  | Plan 9 assembly is OS/architecture-specific                                                                          |
+| compiler, binder, and libc release | Manifest and runtime ABI are versioned together                                                                      |
+| Go toolchain version               | Stack-frame and ABI contracts are checked during generation                                                          |
 
 ## Useful inspection points
 
-If a build fails, preserve the `.s` and `.json` pair. Check the manifest target and ABI version before debugging generated Go. Use `c2go-bind --dry-run` to inspect Go output without changing an output directory, and `c2go-lto --c2go-print-stats` when diagnosing the compiler pipeline directly.
+If a build fails, preserve the `.s` and `.json` pair. Check the manifest package path, target, and ABI version before debugging generated Go. Use `c2go-bind --dry-run` to inspect Go output without changing an output directory, and `c2go-lto --c2go-print-stats` when diagnosing the compiler pipeline directly.
+
+`c2go-bind` derives the Go package name from the final segment of manifest `pkgpath`. Pass `--pkgname` only when they genuinely differ—for example, import path `github.com/c2gohq/c2go_libc` with source clause `package libc`.
 
 Next, [export a C API to Go](/en/docs/export-c/) before introducing managed memory.

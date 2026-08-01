@@ -68,7 +68,6 @@ The compiler writes `.c2go/translated.s` and `.c2go/translated.json`. This emit 
 ```sh
 mkdir -p translated
 c2go-bind \
-  --pkg=example.com/hello-c2go/translated \
   --out=translated \
   --sidecar=.c2go/translated.json \
   .c2go/translated.s

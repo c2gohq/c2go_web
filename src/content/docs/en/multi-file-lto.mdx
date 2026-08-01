@@ -37,7 +37,6 @@ Bind the merged output normally:
 ```sh
 mkdir -p engine
 c2go-bind \
-  --pkg=example.com/acme/engine \
   --out=engine \
   --sidecar=engine.json \
   engine.s
@@ -69,8 +68,8 @@ Without the nonfatal option, exit status `0` is clean, `1` means the escape audi
 `c2go-bind` can also merge multiple assembly inputs or accept a C2Go archive:
 
 ```sh
-c2go-bind --pkg=example.com/acme/engine --out=engine a.s b.s
-c2go-bind --pkg=example.com/acme/engine --out=engine engine.a
+c2go-bind --out=engine a.s b.s
+c2go-bind --out=engine engine.a
 ```
 
 The binder performs exact duplicate elimination and rejects conflicts across symbols, types, globals, linknames, GC masks, callbacks, targets, versions, and ABI epochs.

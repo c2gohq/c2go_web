@@ -32,7 +32,7 @@ c2go_extern int64_t sum(const int64_t *values, size_t count) {
 
 Prefer fixed-width integers in public APIs. `long` is 64 bits on 64-bit Linux and macOS targets but remains 32 bits on 64-bit Windows; do not use it for a cross-platform Go API unless that difference is intentional.
 
-The default Go export name converts each underscore-separated segment to CamelCase and removes the underscores: `sum` becomes `Sum`, `is_upper` becomes `IsUpper`, and `sqlite3_open` becomes `Sqlite3Open`. The package path is the value supplied to both `-fc2go-package` and `c2go-bind --pkg`.
+The default Go export name converts each underscore-separated segment to CamelCase and removes the underscores: `sum` becomes `Sum`, `is_upper` becomes `IsUpper`, and `sqlite3_open` becomes `Sqlite3Open`. Set the final Go import path only with `c2go-clang -fc2go-package`; the manifest carries it to the binder.
 
 Use `c2go_extern_as(C2GO_KEEPCASE)` only when exact spelling is part of an existing contract:
 
@@ -74,4 +74,4 @@ An exported `init` or `main` function cannot retain a lowercase name. These name
 
 Generated files include ABI/version guards and may include runtime imports, GC metadata, or native-call glue in addition to the visible declarations. Do not copy only the public-looking `.go` file. Keep the complete generated directory and its licensing records together.
 
-Next, learn how [managed and unmanaged](/en/docs/managed-unmanaged/) declarations keep exported pointer layouts visible to the GC.
+Next, learn how [memory and Go GC rules](/en/docs/managed-unmanaged/) keep exported pointer layouts visible to the collector.

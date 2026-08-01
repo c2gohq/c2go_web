@@ -39,6 +39,12 @@ c2go_extern __c2go_intptr answer(void) {
 
 For an ordinary Go function, omit the optional ABI selector. C2Go creates an alias and wrapper that bridge to the Go internal ABI.
 
+## Symbols in the current package
+
+The C declaration always spells the complete Go symbol name. Clang then uses `-fc2go-package` to decide whether that target belongs to the package being generated. Compiling the example above with `-fc2go-package=example.com/mathx` resolves `example.com/mathx.Double` to a package-local LLVM and Plan 9 symbol instead of a cross-package reference. The complete linkname remains in IR and manifest metadata for auditing and generation checks.
+
+Do not pass the import path to `c2go-bind` again. The binder reads it from the manifest; use the optional `--pkgname` override only when the Go source package name differs from the path base.
+
 ## Bind an existing ABI0 symbol
 
 Use `C2GO_GOABI0` only when the target already exposes a Go ABI0 entry point:
@@ -75,10 +81,8 @@ The fields become independent Go ABI result slots; C2Go does not pass a hidden `
 
 ## Functions and variables
 
-`c2go_linkname` can bind both functions and variables. In either case, the full Go symbol name is a build contract. Refactoring the Go package or symbol without updating the C declaration produces a link failure.
+`c2go_linkname` can bind both functions and variables. In either case, the complete Go symbol name in the C declaration and `-fc2go-package` are build contracts. Refactoring the Go package or symbol without updating them together produces a link failure.
 
 ## Current boundary
-
-Pre-generated `<go/*.h>` headers exist in the compiler source tree but are not currently built or installed as SDK resource headers. Do not rely on `#include <go/math.h>` or similar paths. Declare required symbols explicitly with `c2go_linkname`.
 
 For C ABI libraries rather than Go symbols, use [native library imports](/en/docs/native-libraries/).

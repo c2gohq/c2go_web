@@ -37,7 +37,7 @@ export const docsNavigation: NavSection[] = [
       },
       {
         slug: "managed-unmanaged",
-        title: { en: "Managed and unmanaged", "zh-cn": "Managed 与 unmanaged" },
+        title: { en: "Memory and the Go GC", "zh-cn": "内存与 Go GC" },
       },
       {
         slug: "gc-allocation",

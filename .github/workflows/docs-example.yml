@@ -48,7 +48,6 @@ jobs:
             .c2go/input.c
           mkdir -p translated
           c2go-bind \
-            --pkg=example.com/hello-c2go/translated \
             --out=translated \
             --sidecar=.c2go/translated.json \
             .c2go/translated.s

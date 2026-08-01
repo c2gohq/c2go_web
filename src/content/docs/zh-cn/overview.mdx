@@ -27,6 +27,8 @@ C2Go 是 Clang 的一种编译模式，它会把 **C 源码编译成可由 Go �
 
 `c2go-bind` 读取汇编与 manifest，把生成的 `.go`、`.s` 文件写入普通 Go package，最后由 `go build` 或 `go test` 完成构建。
 
+生成的 package 不使用 `import "C"`。c2go-libc 集成 PureGo 原生调用桥，因此消费者可以在 `CGO_ENABLED=0`、没有宿主 C 编译器的环境中构建；只有生成阶段需要 C2Go 工具链。
+
 ```text
 C 源码
    │

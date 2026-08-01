@@ -22,7 +22,7 @@ sourceLinks:
 | ---------------------------------- | ------------------------------------------------- |
 | `-fc2go`                           | 开启 C2Go 语言扩展与 Go ABI lowering              |
 | `--target=<triple>`                | 选择机器架构、OS data model 与 Go ABI environment |
-| `-fc2go-package=<path>`            | 符号命名使用的 Go package path；默认 `main`       |
+| `-fc2go-package=<path>`            | 写入产物的最终 Go import path；默认 `main`        |
 | `-fc2go-emit-plan9-asm=<file>`     | 输出 Plan 9 汇编                                  |
 | `-fc2go-emit-manifest=<file>`      | 输出 JSON export manifest                         |
 | `-fc2go-target-go-version=<lo-hi>` | 写入支持的 Go 版本区间；上界不包含                |
@@ -59,8 +59,7 @@ c2go-clang --target=x86_64-unknown-linux-goabi \
 
 | 选项                 | 含义                                         |
 | -------------------- | -------------------------------------------- |
-| `--pkg`              | 必填的最终 Go import path                    |
-| `--pkgname`          | 覆盖生成的 `package` 子句                    |
+| `--pkgname`          | 当 package 名不同于 manifest 路径末段时覆盖  |
 | `--goname`           | 生成 Go 文件的基础名称                       |
 | `--out`              | 输出目录；默认为当前目录                     |
 | `--sidecar`          | 为单个汇编输入指定 manifest                  |
@@ -72,5 +71,7 @@ c2go-clang --target=x86_64-unknown-linux-goabi \
 | `--version`          | 打印 binder 版本                             |
 
 `c2go-bind` 接受 `.s`、manifest、C2Go `ar` archive 以及多个兼容输入。正常写盘生成会在 package 中同时写入授权记录。
+
+`--pkgname` 不会覆盖 import path，也不参与符号链接。默认值是 manifest `pkgpath` 的末段；只有实际 Go package clause 不同于这个默认值时才需要设置。
 
 接下来查看[平台与限制矩阵](/zh-cn/docs/platforms-limitations/)。

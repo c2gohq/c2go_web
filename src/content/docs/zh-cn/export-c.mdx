@@ -32,7 +32,7 @@ c2go_extern int64_t sum(const int64_t *values, size_t count) {
 
 公开 API 建议使用固定宽度整数。`long` 在 Linux/macOS 64 位 target 上是 64 位，在 Windows 64 位 target 上仍是 32 位；除非这个差异就是契约的一部分，否则不要用它表达跨平台 Go API。
 
-默认 Go 导出名会把每个下划线分段转换为 CamelCase，并移除下划线：`sum` 变为 `Sum`，`is_upper` 变为 `IsUpper`，`sqlite3_open` 变为 `Sqlite3Open`。package path 由 `-fc2go-package` 和 `c2go-bind --pkg` 共同指定。
+默认 Go 导出名会把每个下划线分段转换为 CamelCase，并移除下划线：`sum` 变为 `Sum`，`is_upper` 变为 `IsUpper`，`sqlite3_open` 变为 `Sqlite3Open`。最终 Go import path 只通过 `c2go-clang -fc2go-package` 指定，并随 manifest 传给 binder。
 
 只有现有契约确实要求保持拼写时，才使用 `c2go_extern_as(C2GO_KEEPCASE)`：
 
@@ -74,4 +74,4 @@ Packed 或自定义 alignment 的 managed record 会产生 C2Go warning。当前
 
 除了表面可见的声明，生成文件还包括 ABI/版本 guard，并可能包含 runtime import、GC metadata 或 native-call glue。不要只复制看起来像公共 API 的 `.go` 文件；应完整保留整个生成目录及其授权记录。
 
-下一章解释 [Managed 与 unmanaged](/zh-cn/docs/managed-unmanaged/) 声明如何让导出指针布局保持对 GC 可见。
+下一章从生命周期出发解释[内存与 Go GC](/zh-cn/docs/managed-unmanaged/)，以及如何让导出指针布局保持对 GC 可见。

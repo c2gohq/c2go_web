@@ -31,7 +31,7 @@ c2go-clang --target="$C2GO_TARGET" -fc2go -E -v input.c
 
 **Symptom:** `c2go-bind` reports target, version, epoch, symbol, type, or callback conflicts.
 
-Delete stale generated inputs and rebuild the `.s` and JSON manifest together. Check that `-fc2go-package` equals `--pkg`, and never reuse an output filename across targets in a shared build directory.
+Delete stale generated inputs and rebuild the `.s` and JSON manifest together. Confirm that the manifest `pkgpath` is the final Go import path passed to `c2go-clang -fc2go-package`, and never reuse an output filename across targets in a shared build directory.
 
 ## Go compatibility probe fails
 
@@ -42,7 +42,7 @@ go version
 c2go-bind --version
 ```
 
-## Managed/unmanaged diagnostics
+## Memory-lifetime diagnostics
 
 Warnings about managed-to-unmanaged call, store, or return indicate loss of precise GC tracking. Trace the pointer's allocation and ownership instead of casting it through an integer. Errors about cross-type layouts or unmanaged records with managed fields require changing the data representation.
 

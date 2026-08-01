@@ -14,12 +14,12 @@ const copy = cn
   ? {
       title: "把 C 带入 Go runtime。",
       description:
-        "用 LLVM 把 C 编译成 Plan 9 汇编与 manifest，再由 c2go-bind 生成普通 Go package，并通过 c2go-libc 接入 C runtime API。",
+        "把 C 提前编译成可直接导入的普通 Go package，在 Go runtime 中运行，并支持不依赖 cgo 的最终构建。",
       start: "开始使用",
       github: "查看 GitHub",
-      how: "它如何工作",
-      howIntro:
-        "一条透明、可检查的构建管线。每个阶段都有明确产物，没有隐藏的运行时编译。",
+      pureGoHighlight: "PureGo · CGO_ENABLED=0",
+      gcHighlight: "Go GC 感知",
+      abiHighlight: "C ABI 互操作",
       gcTitle: "Go GC 感知的内存分配",
       gcBody:
         "显式 managed record 可以通过 c2go-libc 在 Go heap 分配。类型信息描述指针布局，让 GC 精确扫描对象。",
@@ -29,6 +29,9 @@ const copy = cn
       nativeTitle: "调用原生库",
       nativeBody:
         "通过 unmanaged extern 导入系统或第三方 C ABI；链接参数由 c2go-bind 记录并带入最终 Go package。",
+      pureGoTitle: "无需 cgo 的 Go 构建",
+      pureGoBody:
+        '生成产物不依赖 import "C"。c2go-libc 使用 PureGo 原生调用桥，让消费者可以在 CGO_ENABLED=0、没有宿主 C 编译器的环境构建。',
       callbackTitle: "跨越边界的回调",
       callbackBody:
         "将 C2Go 编译的函数包装成原生函数指针，或显式导入宿主地址，用于真实 C 回调接口。",
@@ -44,7 +47,7 @@ const copy = cn
       platformNote: "候选版本；二进制尚未签名，API 和 ABI 仍可能调整。",
       final: "从 Hello World 开始",
       finalBody:
-        "从一个 C 加法函数开始，逐步理解 managed 内存、互操作和多文件构建。",
+        "从一个 C 加法函数开始，逐步理解 Go GC 管理的内存、互操作和多文件构建。",
       cInput: "C 输入",
       goOutput: "Go 调用",
       runtime: "提供 C runtime 与 Go runtime 的兼容层",
@@ -52,12 +55,12 @@ const copy = cn
   : {
       title: "Bring C into the Go runtime.",
       description:
-        "Compile C with LLVM into Plan 9 assembly and a manifest, generate a normal Go package with c2go-bind, and use C runtime APIs through c2go-libc.",
+        "Ahead-of-time compile C into a normal, directly importable Go package that runs in the Go runtime and builds without cgo.",
       start: "Get started",
       github: "View on GitHub",
-      how: "How it works",
-      howIntro:
-        "A transparent, inspectable build pipeline. Every stage has an explicit artifact and there is no hidden runtime compilation.",
+      pureGoHighlight: "PureGo · CGO_ENABLED=0",
+      gcHighlight: "Go GC aware",
+      abiHighlight: "C ABI interop",
       gcTitle: "Go GC-aware allocation",
       gcBody:
         "Explicitly managed records can be allocated on the Go heap through c2go-libc. Type information lets the GC scan their pointer layout precisely.",
@@ -67,6 +70,9 @@ const copy = cn
       nativeTitle: "Call native libraries",
       nativeBody:
         "Import system or third-party C ABIs with unmanaged extern. c2go-bind records linker inputs in the final Go package.",
+      pureGoTitle: "Build without cgo",
+      pureGoBody:
+        'Generated packages do not depend on import "C". c2go-libc uses a PureGo native-call bridge so consumers can build with CGO_ENABLED=0 and no host C compiler.',
       callbackTitle: "Callbacks across the boundary",
       callbackBody:
         "Wrap C2Go-compiled functions as native function pointers or explicitly import host addresses for real C callback APIs.",
@@ -83,42 +89,11 @@ const copy = cn
         "Release candidate; binaries are unsigned and APIs and ABI details may still change.",
       final: "Start with Hello World",
       finalBody:
-        "Begin with one C addition function, then learn managed memory, interop, and multi-file builds.",
+        "Begin with one C addition function, then learn GC-managed memory, interop, and multi-file builds.",
       cInput: "C input",
       goOutput: "Go call",
       runtime: "C runtime compatibility for the Go runtime environment",
     };
-
-const stages = [
-  {
-    icon: "gear" as const,
-    title: "c2go-clang",
-    body: cn
-      ? "解析 C，并输出 Plan 9 汇编与 manifest。"
-      : "Parses C and emits Plan 9 assembly plus a manifest.",
-  },
-  {
-    icon: "file" as const,
-    title: "Plan 9 + JSON",
-    body: cn
-      ? "目标相关汇编，以及类型、符号与链接元数据。"
-      : "Target-specific assembly plus type, symbol, and linker metadata.",
-  },
-  {
-    icon: "link" as const,
-    title: "c2go-bind",
-    body: cn
-      ? "读取产物，生成 Go 声明、胶水和汇编。"
-      : "Reads artifacts and generates Go declarations, glue, and assembly.",
-  },
-  {
-    icon: "box" as const,
-    title: "Go package",
-    body: cn
-      ? "像普通 Go package 一样导入和测试。"
-      : "Import and test it like a normal Go package.",
-  },
-];
 ---
 
 <BaseLayout locale={locale} title="C2Go" description={copy.description}>
@@ -138,6 +113,11 @@ const stages = [
               >{copy.github}<Icon name="external" size={16} /></a
             >
           </div>
+          <ul class="hero-highlights" aria-label="C2Go core capabilities">
+            <li>{copy.pureGoHighlight}</li>
+            <li>{copy.gcHighlight}</li>
+            <li>{copy.abiHighlight}</li>
+          </ul>
         </div>
         <div class="hero-diagram" aria-label="C2Go compilation pipeline">
           <div class="hero-stage-row">
@@ -187,42 +167,24 @@ result := translated.Add(20, 22)`}</code></pre>
       </div>
     </section>
 
-    <section class="pipeline-section">
-      <div class="section-heading centered">
-        <h2>{copy.how}</h2>
-        <p>{copy.howIntro}</p>
-      </div>
-      <div class="pipeline-grid">
-        {
-          stages.map((stage, index) => (
-            <div class="pipeline-stage">
-              <div class="stage-title">
-                <>
-                  <Icon name={stage.icon} size={24} />
-                  <strong>{stage.title}</strong>
-                </>
-              </div>
-              <p>{stage.body}</p>
-              {index < stages.length - 1 && <span class="stage-arrow">→</span>}
-            </div>
-          ))
-        }
-      </div>
-      <div class="pipeline-runtime">
-        <Icon name="layers" /><strong>c2go-libc</strong><span
-          >{copy.runtime}</span
-        >
-      </div>
-    </section>
-
     <section class="feature-sections">
       <article class="feature-row">
         <div class="feature-copy">
-          <h2>{copy.gcTitle}</h2><p>{copy.gcBody}</p><a
-            href={docsPath(locale, "gc-allocation")}
+          <h2>{copy.pureGoTitle}</h2><p>{copy.pureGoBody}</p><a
+            href={docsPath(locale, "native-libraries")}
             >{copy.start}<Icon name="arrow" size={16} /></a
           >
         </div>
+        <div class="code-window">
+          <div class="window-bar">
+            <i></i><i></i><i></i><span>terminal</span>
+          </div><pre><code>{`CGO_ENABLED=0 go build ./...
+
+# No import "C"
+# No host C compiler required`}</code></pre>
+        </div>
+      </article>
+      <article class="feature-row reverse">
         <div class="code-window">
           <div class="window-bar">
             <i></i><i></i><i></i><span>managed.c</span>
@@ -235,8 +197,14 @@ node->next = gc_malloc(
 
 // Both objects are tracked by the Go GC.`}</code></pre>
         </div>
+        <div class="feature-copy">
+          <h2>{copy.gcTitle}</h2><p>{copy.gcBody}</p><a
+            href={docsPath(locale, "gc-allocation")}
+            >{copy.start}<Icon name="arrow" size={16} /></a
+          >
+        </div>
       </article>
-      <article class="feature-row reverse">
+      <article class="feature-row">
         <div class="boundary-diagram">
           <div>
             <small>C source</small><code>answer = go_answer(21);</code>
@@ -251,13 +219,7 @@ node->next = gc_malloc(
           >
         </div>
       </article>
-      <article class="feature-row">
-        <div class="feature-copy">
-          <h2>{copy.nativeTitle}</h2><p>{copy.nativeBody}</p><a
-            href={docsPath(locale, "native-libraries")}
-            >{copy.start}<Icon name="arrow" size={16} /></a
-          >
-        </div>
+      <article class="feature-row reverse">
         <div class="code-window">
           <div class="window-bar">
             <i></i><i></i><i></i><span>native.c</span>
@@ -267,8 +229,14 @@ double scaled_value(double value) {
   return vendor_scale(value);
 }`}</code></pre>
         </div>
+        <div class="feature-copy">
+          <h2>{copy.nativeTitle}</h2><p>{copy.nativeBody}</p><a
+            href={docsPath(locale, "native-libraries")}
+            >{copy.start}<Icon name="arrow" size={16} /></a
+          >
+        </div>
       </article>
-      <article class="feature-row reverse">
+      <article class="feature-row">
         <div class="boundary-diagram callback">
           <div>
             <small>native API</small><code>register_cb(callback);</code>
@@ -309,8 +277,7 @@ c2go-clang --target="$C2GO_TARGET" \\
           <span class="step-number">3</span><h3>{copy.build}</h3><p>
             {copy.buildBody}
           </p><pre><code>{`mkdir -p translated
-c2go-bind --pkg=example.com/demo/translated \\
-  --out=translated --sidecar=.c2go/translated.json \\
+c2go-bind --out=translated --sidecar=.c2go/translated.json \\
   .c2go/translated.s
 go test ./...`}</code></pre>
         </article>

@@ -31,7 +31,7 @@ c2go-clang --target="$C2GO_TARGET" -fc2go -E -v input.c
 
 **现象：**`c2go-bind` 报告 target、version、epoch、symbol、type 或 callback 冲突。
 
-删除陈旧生成输入，同时重建 `.s` 与 JSON manifest。检查 `-fc2go-package` 与 `--pkg` 相同，并且不要在共享 build directory 中让多个 target 复用输出文件名。
+删除陈旧生成输入，同时重建 `.s` 与 JSON manifest。确认 manifest 中的 `pkgpath` 就是传给 `c2go-clang -fc2go-package` 的最终 Go import path，并且不要在共享 build directory 中让多个 target 复用输出文件名。
 
 ## Go 兼容性探测失败
 
@@ -42,7 +42,7 @@ go version
 c2go-bind --version
 ```
 
-## Managed/unmanaged 诊断
+## 内存归属诊断
 
 managed-to-unmanaged call、store 或 return warning 表示丢失精确 GC 跟踪。应追踪指针分配与所有权，而不是把它转换成整数。cross-type layout 或 unmanaged record 含 managed field 的 error 则必须修改数据表示。
 

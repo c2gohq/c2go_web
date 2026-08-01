@@ -40,7 +40,7 @@ cc1 → LLVM bitcode → c2go-lto → output.s + output.json
 
 只有汇编还不够。JSON manifest 保存了 Go 源码生成器无法可靠地从文本汇编恢复的信息，包括：
 
-- package 与导出符号名称；
+- Go import path 与导出符号名称；
 - 目标 `GOOS` 和 `GOARCH`；
 - 支持的 Go 版本范围与 C2Go ABI epoch；
 - record 布局、字段与 GC pointer mask；
@@ -57,16 +57,18 @@ cc1 → LLVM bitcode → c2go-lto → output.s + output.json
 
 ## 必须保持一致的值
 
-| 值                                    | 为什么必须匹配                                 |
-| ------------------------------------- | ---------------------------------------------- |
-| `-fc2go-package` 与 `c2go-bind --pkg` | 两者共同确定最终 Go import path 与符号命名空间 |
-| 汇编与 manifest                       | 它们描述同一个编译单元                         |
-| target triple 与 Go build target      | Plan 9 汇编与 OS/架构绑定                      |
-| compiler、binder 与 libc 版本         | manifest 和 runtime ABI 会协同版本化           |
-| Go 工具链版本                         | 生成阶段会检查栈帧和 ABI 契约                  |
+| 值                               | 为什么必须匹配                                                                     |
+| -------------------------------- | ---------------------------------------------------------------------------------- |
+| `-fc2go-package`                 | 最终 Go import path 的唯一来源；也用于识别同包 linkname，并随 manifest 传给 binder |
+| 汇编与 manifest                  | 它们描述同一个编译单元                                                             |
+| target triple 与 Go build target | Plan 9 汇编与 OS/架构绑定                                                          |
+| compiler、binder 与 libc 版本    | manifest 和 runtime ABI 会协同版本化                                               |
+| Go 工具链版本                    | 生成阶段会检查栈帧和 ABI 契约                                                      |
 
 ## 有用的检查点
 
-构建失败时，先保留 `.s` 与 `.json` 文件对。调试生成 Go 代码前，检查 manifest 中的 target 与 ABI 版本。可以用 `c2go-bind --dry-run` 在不修改输出目录的情况下检查 Go 输出；直接诊断编译管线时使用 `c2go-lto --c2go-print-stats`。
+构建失败时，先保留 `.s` 与 `.json` 文件对。调试生成 Go 代码前，检查 manifest 中的 package path、target 与 ABI 版本。可以用 `c2go-bind --dry-run` 在不修改输出目录的情况下检查 Go 输出；直接诊断编译管线时使用 `c2go-lto --c2go-print-stats`。
+
+`c2go-bind` 默认从 manifest `pkgpath` 的末段推导 Go package 名。只有两者确实不同时才传 `--pkgname`，例如 import path 为 `github.com/c2gohq/c2go_libc`、源码声明为 `package libc`。
 
 下一章先把一个 [C API 导出给 Go](/zh-cn/docs/export-c/)，再进入 managed memory。

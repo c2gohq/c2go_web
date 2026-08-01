@@ -6,6 +6,7 @@ import { release } from "../src/data/release";
 const root = path.resolve("src/content/docs");
 const locales = ["en", "zh-cn"] as const;
 const expected = flatDocs.map((item) => item.slug).sort();
+const retiredBindPkgFlag = /(^|[^\w-])--?pkg(?=$|[=\s`])/m;
 const expectedMetadata = new Map<string, { section: string; order: number }>();
 let navigationOrder = 0;
 for (const section of docsNavigation) {
@@ -53,6 +54,11 @@ for (const locale of locales) {
     if (source.includes("c2go_clang/blob/v0.20260729.0-rc.5/docs/c2go/")) {
       throw new Error(
         `${filename}: source link points at unpublished c2go_clang/docs/c2go content`,
+      );
+    }
+    if (retiredBindPkgFlag.test(source)) {
+      throw new Error(
+        `${filename}: c2go-bind package paths come from the manifest; the retired -pkg/--pkg flag must not appear`,
       );
     }
     const order = frontmatter.match(/^order:\s*(\d+)$/m);

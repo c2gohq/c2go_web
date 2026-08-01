@@ -39,6 +39,13 @@ c2go_extern __c2go_intptr answer(void) {
 
 对普通 Go 函数不要写可选 ABI selector。C2Go 会创建 alias 与 wrapper，桥接到 Go internal ABI。
 
+## 同包符号
+
+C 声明始终书写完整 Go symbol name；Clang 再用 `-fc2go-package` 判断它是否属于正在生成的 package。例如使用
+`-fc2go-package=example.com/mathx` 编译上面的声明时，`example.com/mathx.Double` 会在 LLVM 与 Plan 9 汇编中解析为当前 package 的本地符号，而不是一次跨 package 引用。完整 linkname 仍保留在 IR/manifest 元数据中，供审计和生成流程核对。
+
+不要再把 import path 传给 `c2go-bind`。Binder 从 manifest 读取它；只有 Go 源码中的 package 名与路径末段不同时，才需要可选的 `--pkgname` 覆盖。
+
 ## 绑定已有 ABI0 符号
 
 只有目标已经暴露 Go ABI0 入口时才使用 `C2GO_GOABI0`：
@@ -75,10 +82,8 @@ extern struct DivMod go_divmod(int, int)
 
 ## 函数与变量
 
-`c2go_linkname` 同时适用于函数与变量。无论哪一种，完整 Go symbol name 都是构建契约。如果重构 Go package 或符号但没有更新 C 声明，最终会链接失败。
+`c2go_linkname` 同时适用于函数与变量。无论哪一种，C 声明中的完整 Go symbol name 与 `-fc2go-package` 都是构建契约。如果重构 Go package 或符号但没有同步更新它们，最终会链接失败。
 
 ## 当前边界
-
-编译器源码树中存在预生成 `<go/*.h>` 头文件，但它们目前没有作为 target 构建，也没有安装为 SDK resource header。不要依赖 `#include <go/math.h>` 一类路径；应通过 `c2go_linkname` 显式声明所需符号。
 
 如果目标是 C ABI 动态库而不是 Go 符号，请使用[原生库导入](/zh-cn/docs/native-libraries/)。

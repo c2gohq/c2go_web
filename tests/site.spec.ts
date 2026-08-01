@@ -1,20 +1,65 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
-test("English landing page exposes the real pipeline", async ({ page }) => {
+test("English landing page exposes the real pipeline", async ({
+  page,
+}, testInfo) => {
   await page.goto("/en/");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     "Bring C into the Go runtime.",
   );
   await expect(page.getByText("c2go-clang").first()).toBeVisible();
-  await expect(
-    page.locator(".pipeline-section").getByText("c2go-bind"),
-  ).toBeVisible();
+  const bindStage =
+    testInfo.project.name === "mobile"
+      ? page.locator(".quickstart-grid").getByText(/c2go-bind --out=/)
+      : page.locator(".hero-diagram").getByText("c2go-bind");
+  await expect(bindStage).toBeVisible();
   await expect(page.getByText("c2go-libc").first()).toBeVisible();
+  await expect(page.locator(".pipeline-section")).toHaveCount(0);
+  await expect(
+    page.locator(".hero-highlights").getByText("PureGo · CGO_ENABLED=0"),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { level: 2, name: "Build without cgo" }),
+  ).toBeVisible();
+  await expect(page.getByText("CGO_ENABLED=0 go build ./...")).toBeVisible();
   await expect(page.locator(".safety-notice")).toHaveCount(0);
   await expect(
     page.getByRole("link", { name: /Get started/ }).first(),
   ).toHaveAttribute("href", "/en/docs/hello-world/");
+});
+
+test("the package import path is supplied only to c2go-clang", async ({
+  page,
+}) => {
+  await page.goto("/en/docs/hello-world/");
+  const article = page.locator("article.docs-article");
+  await expect(article).toContainText(
+    "-fc2go-package=example.com/hello-c2go/translated",
+  );
+  await expect(article).not.toContainText("--pkg=");
+
+  await page.goto("/en/docs/cli-reference/");
+  await expect(page.locator("article.docs-article")).toContainText(
+    "--pkgname neither overrides the import path nor participates in symbol linkage",
+  );
+
+  await page.goto("/en/docs/call-go/");
+  await expect(
+    page.getByRole("heading", {
+      level: 2,
+      name: "Symbols in the current package",
+    }),
+  ).toBeVisible();
+  await expect(page.locator("article.docs-article")).toContainText(
+    "resolves example.com/mathx.Double to a package-local LLVM and Plan 9 symbol",
+  );
+
+  await page.goto("/en/docs/managed-unmanaged/");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "Memory and the Go GC",
+  );
+  await expect(page.getByText("Start with two questions:")).toBeVisible();
 });
 
 test("language switch preserves the document slug and preference", async ({
@@ -171,6 +216,7 @@ test("core pages have no serious accessibility violations", async ({
   for (const pathname of [
     "/en/",
     "/en/docs/hello-world/",
+    "/en/docs/managed-unmanaged/",
     "/en/docs/c-language-reference/",
     "/en/docs/stack-escape-audit/",
     "/zh-cn/docs/managed-unmanaged/",

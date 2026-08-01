@@ -10,6 +10,8 @@ sourceLinks:
     url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/test/CodeGen/c2go-unmanaged-extern-manifest.c
   - label: c2go-bind linker options
     url: https://github.com/c2gohq/c2go_bind/blob/v0.20260729.0-rc.5/README.md#usage
+  - label: c2go-libc PureGo bridge
+    url: https://github.com/c2gohq/c2go_libc/blob/v0.20260729.0-rc.5/dl/dispatch_unix.go
 ---
 
 A declared-only function is an unmanaged host import by default in the current implementation. Spell `unmanaged extern` explicitly at native API boundaries: it documents intent and makes callback parameters receive the host-callback type checks. The symbol is resolved from a `.so`, `.dylib`, or `.dll` through the host C ABI.
@@ -36,7 +38,6 @@ Pass library names and optional probe directories during binding:
 
 ```sh
 c2go-bind \
-  --pkg=example.com/demo/native \
   --out=native \
   --sidecar=native.json \
   -l vendor \
@@ -45,6 +46,16 @@ c2go-bind \
 ```
 
 The manifest normally determines whether Unix or Windows dispatch glue is required. `--extern-os=unix|windows` exists for controlled overrides, but should not conceal a target mismatch.
+
+## Build without cgo
+
+C2Go emits ordinary Go files and Plan 9 assembly; it does not generate `import "C"`. On Unix, c2go-libc uses a version-pinned PureGo bridge for native calls, while Windows uses the corresponding syscall bridge. The generated package can therefore be built with cgo disabled:
+
+```sh
+CGO_ENABLED=0 go build ./...
+```
+
+The final build does not need a host C compiler. If the program calls an external dynamic library, that `.so`, `.dylib`, or `.dll` must still be present at run time; building without cgo does not statically embed third-party libraries.
 
 ## Pointer ownership still matters
 
