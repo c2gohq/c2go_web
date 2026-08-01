@@ -28,7 +28,7 @@ const copy = cn
         "用 c2go_linkname 声明 Go 符号，让 C 代码直接调用 Go 函数，并由编译器保持 ABI 边界一致。",
       nativeTitle: "调用原生库",
       nativeBody:
-        "通过 unmanaged extern 导入系统或第三方 C ABI；链接参数由 c2go-bind 记录并带入最终 Go package。",
+        "只有声明、没有定义的函数会自动导入系统或第三方 C ABI；链接参数由 c2go-bind 记录并带入最终 Go package。",
       pureGoTitle: "无需 cgo 的 Go 构建",
       pureGoBody:
         '生成产物不依赖 import "C"。c2go-libc 使用 PureGo 原生调用桥，让消费者可以在 CGO_ENABLED=0、没有宿主 C 编译器的环境构建。',
@@ -69,7 +69,7 @@ const copy = cn
         "Declare Go symbols with c2go_linkname, call them directly from C, and let the compiler preserve the ABI boundary.",
       nativeTitle: "Call native libraries",
       nativeBody:
-        "Import system or third-party C ABIs with unmanaged extern. c2go-bind records linker inputs in the final Go package.",
+        "Declared-only functions automatically import system or third-party C ABIs. c2go-bind records linker inputs in the final Go package.",
       pureGoTitle: "Build without cgo",
       pureGoBody:
         'Generated packages do not depend on import "C". c2go-libc uses a PureGo native-call bridge so consumers can build with CGO_ENABLED=0 and no host C compiler.',
@@ -223,7 +223,7 @@ node->next = gc_malloc(
         <div class="code-window">
           <div class="window-bar">
             <i></i><i></i><i></i><span>native.c</span>
-          </div><pre><code>{`unmanaged extern double vendor_scale(double);
+          </div><pre><code>{`extern double vendor_scale(double);
 
 double scaled_value(double value) {
   return vendor_scale(value);

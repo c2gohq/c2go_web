@@ -14,21 +14,23 @@ sourceLinks:
     url: https://github.com/c2gohq/c2go_libc/blob/v0.20260729.0-rc.5/dl/dispatch_unix.go
 ---
 
-在当前实现中，只有声明、没有定义的普通函数默认就是 unmanaged host import。原生 API 边界仍应显式写成 `unmanaged extern`：它既能表达意图，也会让 callback 参数接受 host-callback 类型检查。符号会通过宿主 C ABI 从真实 `.so`、`.dylib` 或 `.dll` 解析。
+在当前实现中，只有声明、没有定义的普通函数默认就是 unmanaged host import。因此普通原生函数只需要常规 C 声明，不要求写 `unmanaged extern`。符号会通过宿主 C ABI 从真实 `.so`、`.dylib` 或 `.dll` 解析。
+
+显式 `unmanaged extern` 是可选但更强的契约：它表示该函数之后不会再得到 C2Go 定义。当参数或返回值本身是函数指针时，它还会选择 host-callback 函数指针规则。[回调章节](/zh-cn/docs/callbacks/)只因这个特殊目的使用显式形式。
 
 ## 声明导入
 
 ```c
 #include <c2go.h>
 
-unmanaged extern double vendor_scale(double value);
+extern double vendor_scale(double value);
 
 c2go_extern double scaled_value(double value) {
     return vendor_scale(value);
 }
 ```
 
-只有实际引用的 import 才会生成 wrapper；未使用声明不会增加 dispatch 代码。
+未使用的普通声明不会进入生成的 import metadata。显式 `unmanaged extern` 即使未被 C 代码引用，也可以继续暴露给生成的 Go；这也是只在确实需要该契约时才使用显式形式的另一个原因。
 
 `c2go_extern` 不是 import 标记：它把一个 C 定义导出给 Go。这两个概念有意保持分离。
 

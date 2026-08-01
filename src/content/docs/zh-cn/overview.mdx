@@ -58,7 +58,7 @@ C2Go 明确区分两个内存世界。当前实现的 translation unit 默认是
 | `gc_malloc` 与 `c2go_typeinfo`   | 在 Go heap 上分配带类型的对象 |
 | `c2go_extern`                    | 将已定义的 C 函数导出给 Go    |
 | `c2go_linkname`                  | 将 C 声明绑定到 Go 符号       |
-| `unmanaged extern`               | 导入原生 C 符号               |
+| `unmanaged`                      | 显式标记原生 C 表示或边界     |
 | `c2go_callback` / `c2go_callout` | 在边界两侧传递可调用函数指针  |
 | `c2go_returntype`                | 用 C struct 描述 Go 多返回值  |
 

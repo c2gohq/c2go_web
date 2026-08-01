@@ -52,6 +52,8 @@ c2go_extern long node_value(const struct Node *node) {
 
 按任务学习的示例见[将 C 导出给 Go](/zh-cn/docs/export-c/)和[从 C 调用 Go](/zh-cn/docs/call-go/)。
 
+只有声明、没有定义的函数默认就是 native import；导入普通原生函数不要求写 `unmanaged extern`。只有当声明必须永久保持 import-only，或函数指针参数/返回值需要 host-callback 类型规则时，才显式使用 `unmanaged`。
+
 ## Managed 分配与类型信息
 
 | 公开拼写                                       | 类别                                    | 结果                                                          |

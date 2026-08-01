@@ -25,13 +25,13 @@ C 程序通常自己决定内存何时释放；Go 则由垃圾回收器决定对
 
 ## 两种内存的直观区别
 
-| 使用场景 | 选择 | 原因 |
-| --- | --- | --- |
-| 使用 `gc_malloc` 创建、需要跨 Go 调用继续存活的对象 | managed | Go GC 必须知道对象类型和内部指针位置 |
-| Go 管理的链表、树或其他含指针对象 | managed | 写入指针时需要 Go write barrier |
-| 普通 `malloc`/`free` 缓冲区 | unmanaged | 生命周期仍由 C 代码手动控制 |
-| 系统调用、动态库或第三方 C ABI 使用的结构体 | unmanaged | 必须保持原生 C 内存与 ABI 语义 |
-| 函数中的普通局部变量 | 保持默认 | 只能在当前调用期间使用，不能把地址长期保存 |
+| 使用场景                                            | 选择      | 原因                                       |
+| --------------------------------------------------- | --------- | ------------------------------------------ |
+| 使用 `gc_malloc` 创建、需要跨 Go 调用继续存活的对象 | managed   | Go GC 必须知道对象类型和内部指针位置       |
+| Go 管理的链表、树或其他含指针对象                   | managed   | 写入指针时需要 Go write barrier            |
+| 普通 `malloc`/`free` 缓冲区                         | unmanaged | 生命周期仍由 C 代码手动控制                |
+| 系统调用、动态库或第三方 C ABI 使用的结构体         | unmanaged | 必须保持原生 C 内存与 ABI 语义             |
+| 函数中的普通局部变量                                | 保持默认  | 只能在当前调用期间使用，不能把地址长期保存 |
 
 当前 C2Go 默认使用普通 C 的 unmanaged 语义。只有确实需要 Go GC 跟踪的数据才应显式标为 managed。
 
@@ -76,10 +76,12 @@ struct unmanaged NativeBuffer {
     size_t length;
 };
 
-unmanaged extern int vendor_write(struct NativeBuffer *buffer);
+extern int vendor_write(struct NativeBuffer *buffer);
 ```
 
 普通 `malloc`、`calloc`、`realloc` 和 `free` 也保留手动释放语义。不要在这类裸缓冲区中保存需要 Go GC 跟踪的 managed 指针；GC 不知道缓冲区内部的字段布局。
+
+像 `vendor_write` 这样只有声明、没有定义的函数已经是 native import，不需要显式 `unmanaged` 标记。
 
 `unmanaged` 可以在接口边界上显式表达意图。对于没有标记的普通 C 类型，它也是当前默认行为。
 

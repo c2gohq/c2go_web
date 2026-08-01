@@ -25,13 +25,13 @@ Start with two questions:
 
 ## The practical difference
 
-| Situation | Choose | Why |
-| --- | --- | --- |
-| An object created with `gc_malloc` that survives across Go calls | managed | The Go GC needs its type and pointer layout |
-| A Go-owned list, tree, or other pointer-bearing object | managed | Pointer stores need the Go write barrier |
-| An ordinary `malloc`/`free` buffer | unmanaged | C code still controls its lifetime |
-| A structure passed to the OS, a dynamic library, or a third-party C ABI | unmanaged | It must retain native C memory and ABI semantics |
-| An ordinary function local | keep the default | Use it only during the call; never retain its address |
+| Situation                                                               | Choose           | Why                                                   |
+| ----------------------------------------------------------------------- | ---------------- | ----------------------------------------------------- |
+| An object created with `gc_malloc` that survives across Go calls        | managed          | The Go GC needs its type and pointer layout           |
+| A Go-owned list, tree, or other pointer-bearing object                  | managed          | Pointer stores need the Go write barrier              |
+| An ordinary `malloc`/`free` buffer                                      | unmanaged        | C code still controls its lifetime                    |
+| A structure passed to the OS, a dynamic library, or a third-party C ABI | unmanaged        | It must retain native C memory and ABI semantics      |
+| An ordinary function local                                              | keep the default | Use it only during the call; never retain its address |
 
 The current C2Go default is ordinary unmanaged C behavior. Opt into managed memory only when the Go GC genuinely needs to track the data.
 
@@ -76,10 +76,12 @@ struct unmanaged NativeBuffer {
     size_t length;
 };
 
-unmanaged extern int vendor_write(struct NativeBuffer *buffer);
+extern int vendor_write(struct NativeBuffer *buffer);
 ```
 
 Ordinary `malloc`, `calloc`, `realloc`, and `free` also retain manual-release semantics. Do not store managed pointers in such raw buffers: the GC does not know their internal field layout.
+
+A declared-only function such as `vendor_write` is already a native import. It does not need an explicit `unmanaged` marker.
 
 Use `unmanaged` at a boundary when making that intent explicit helps readers. It is also the current behavior of otherwise unmarked ordinary C types.
 

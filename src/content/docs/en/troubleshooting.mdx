@@ -56,7 +56,7 @@ Do not silence this finding. Replace the retained stack address with correctly t
 
 ## Native symbol cannot be resolved
 
-Confirm the declaration is `unmanaged extern`, the symbol is actually referenced, and the binder receives the correct `-l` and `-L` options. Verify the library matches the target architecture. On Windows, also check the exact exported symbol spelling.
+Confirm the function has a declaration but no C2Go definition, the symbol is actually referenced, and the binder receives the correct `-l` and `-L` options. A normal C function declaration is a native import by default; `unmanaged extern` is not required. Verify the library matches the target architecture. On Windows, also check the exact exported symbol spelling.
 
 ## Callback fails on one platform
 

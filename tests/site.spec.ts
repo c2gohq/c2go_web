@@ -62,6 +62,24 @@ test("the package import path is supplied only to c2go-clang", async ({
   await expect(page.getByText("Start with two questions:")).toBeVisible();
 });
 
+test("ordinary native imports do not require unmanaged extern", async ({
+  page,
+}) => {
+  await page.goto("/en/docs/native-libraries/");
+  const english = page.locator("article.docs-article");
+  await expect(english).toContainText(
+    "An ordinary native function therefore needs only a normal C declaration; unmanaged extern is not required.",
+  );
+  await expect(english).toContainText(
+    "extern double vendor_scale(double value);",
+  );
+
+  await page.goto("/zh-cn/docs/callbacks/");
+  await expect(page.locator("article.docs-article")).toContainText(
+    "这里只因 native_sort 接收函数指针、需要启用 host-callback 指针规则，才显式写 unmanaged extern",
+  );
+});
+
 test("language switch preserves the document slug and preference", async ({
   page,
 }) => {

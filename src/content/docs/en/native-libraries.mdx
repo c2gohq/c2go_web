@@ -14,21 +14,23 @@ sourceLinks:
     url: https://github.com/c2gohq/c2go_libc/blob/v0.20260729.0-rc.5/dl/dispatch_unix.go
 ---
 
-A declared-only function is an unmanaged host import by default in the current implementation. Spell `unmanaged extern` explicitly at native API boundaries: it documents intent and makes callback parameters receive the host-callback type checks. The symbol is resolved from a `.so`, `.dylib`, or `.dll` through the host C ABI.
+A declared-only function is an unmanaged host import by default in the current implementation. An ordinary native function therefore needs only a normal C declaration; `unmanaged extern` is not required. The symbol is resolved from a `.so`, `.dylib`, or `.dll` through the host C ABI.
+
+Explicit `unmanaged extern` is an optional, stronger contract: it says the function will not later receive a C2Go definition. It also selects the host-callback function-pointer rules when a parameter or return type is itself a function pointer. The [callback chapter](/en/docs/callbacks/) uses the explicit form for that specific reason.
 
 ## Declare an import
 
 ```c
 #include <c2go.h>
 
-unmanaged extern double vendor_scale(double value);
+extern double vendor_scale(double value);
 
 c2go_extern double scaled_value(double value) {
     return vendor_scale(value);
 }
 ```
 
-Only referenced imports receive wrappers. An unused declaration does not add dispatch code.
+A plain unused declaration is omitted from generated import metadata. An explicit `unmanaged extern` declaration can remain available to generated Go even when C code does not reference it; this is another reason to use the explicit form only when that contract is intended.
 
 `c2go_extern` is not an import marker: it exports a C definition to Go. These two concepts are intentionally separate.
 

@@ -56,7 +56,7 @@ managed-to-unmanaged call、store 或 return warning 表示丢失精确 GC 跟�
 
 ## 无法解析原生符号
 
-确认声明是 `unmanaged extern`、符号确实被引用，且 binder 收到正确的 `-l` 与 `-L`。检查动态库架构与 target 是否一致；Windows 还要核对精确导出符号拼写。
+确认函数只有声明、没有 C2Go 定义，符号确实被引用，并且 binder 收到正确的 `-l` 与 `-L`。普通 C 函数声明默认就是 native import，不要求写 `unmanaged extern`。检查动态库架构与 target 是否一致；Windows 还要核对精确导出符号拼写。
 
 ## Callback 只在某个平台失败
 

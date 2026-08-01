@@ -52,6 +52,8 @@ c2go_extern long node_value(const struct Node *node) {
 
 For task-oriented examples, see [Export C to Go](/en/docs/export-c/) and [Call Go from C](/en/docs/call-go/).
 
+A declaration-only function is a native import by default; importing an ordinary native function does not require `unmanaged extern`. Apply `unmanaged` explicitly when the declaration must be permanently import-only or when function-pointer parameters or returns need host-callback type rules.
+
 ## Managed allocation and type information
 
 | Public spelling                                | Category                                    | Result                                                                      |

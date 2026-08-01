@@ -34,6 +34,8 @@ void sort_values(void *base, size_t count) {
 }
 ```
 
+这里只因 `native_sort` 接收函数指针、需要启用 host-callback 指针规则，才显式写 `unmanaged extern`。参数和返回值都不含函数指针的普通 native import 不要求这种拼写。
+
 trampoline 允许来自外部线程的回调通过 runtime callback 路径进入 Go 世界。`static` 函数也可以；通过 `c2go_callback` 引用会强制发射该函数。
 
 把裸 `compare_ints` 传给宿主 callback 参数会被拒绝。
@@ -43,7 +45,7 @@ trampoline 允许来自外部线程的回调通过 runtime callback 路径进入
 `c2go_callout` 是相反方向：
 
 ```c
-unmanaged extern int host_compare(const void *, const void *);
+extern int host_compare(const void *, const void *);
 
 int (*compare)(const void *, const void *) = c2go_callout(host_compare);
 int result = compare(left, right);
@@ -57,7 +59,7 @@ int result = compare(left, right);
 
 ```c
 unmanaged extern void host_register(int (*callback)(int, int));
-unmanaged extern int host_add(int, int);
+extern int host_add(int, int);
 
 static int my_add(int a, int b) { return a + b; }
 
