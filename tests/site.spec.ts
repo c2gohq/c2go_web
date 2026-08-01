@@ -161,6 +161,35 @@ test("language reference separates C syntax from C2Go extensions", async ({
   ).toBeVisible();
 });
 
+test("build-system integration keeps native linking outside the C2Go pipeline", async ({
+  page,
+}) => {
+  await page.goto("/en/docs/build-system-integration/");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "Integrate existing build systems",
+  );
+  const english = page.locator("article.docs-article");
+  await expect(english).toContainText(
+    "C2Go is not a drop-in replacement for the complete native compile-and-link pipeline",
+  );
+  await expect(english).toContainText(
+    "The archive compatibility mode always rebuilds the C2Go archive",
+  );
+  await expect(english).toContainText("AR=c2go-lto");
+  await expect(english).toContainText(
+    "A plain -fc2go -c without either flag currently writes a native",
+  );
+  await expect(english).toContainText("CMAKE_C_ARCHIVE_CREATE");
+
+  await page.goto("/zh-cn/docs/build-system-integration/");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "接入现有构建系统",
+  );
+  await expect(page.locator("article.docs-article")).toContainText(
+    "仅设置 CMAKE_C_COMPILER=c2go-clang 仍不完整",
+  );
+});
+
 test("root route selects Chinese from the browser locale", async ({
   browser,
 }, testInfo) => {
@@ -241,6 +270,7 @@ test("core pages have no serious accessibility violations", async ({
     "/en/",
     "/en/docs/hello-world/",
     "/en/docs/managed-unmanaged/",
+    "/en/docs/build-system-integration/",
     "/en/docs/c-language-reference/",
     "/en/docs/stack-escape-audit/",
     "/zh-cn/docs/managed-unmanaged/",
@@ -279,6 +309,7 @@ test("mobile documentation has no horizontal overflow and opens the chapter draw
     "/en/docs/hello-world/",
     "/en/docs/c-language-reference/",
     "/en/docs/c2go-extensions/",
+    "/en/docs/build-system-integration/",
     "/zh-cn/docs/platforms-limitations/",
   ]) {
     await page.goto(pathname);

@@ -4,7 +4,9 @@ on:
   pull_request:
     paths:
       - "examples/hello/**"
+      - "examples/build-systems/**"
       - "src/content/docs/**/hello-world.mdx"
+      - "src/content/docs/**/build-system-integration.mdx"
       - ".github/workflows/docs-example.yml"
   workflow_dispatch:
 
@@ -52,3 +54,24 @@ jobs:
             --sidecar=.c2go/translated.json \
             .c2go/translated.s
           go test ./...
+      - name: Run the documented Makefile and CMake integrations
+        run: |
+          export PATH="$C2GO_HOME/bin:$PATH"
+          for adapter in make cmake; do
+            work="$RUNNER_TEMP/build-system-$adapter"
+            cp -R examples/build-systems "$work"
+            (
+              cd "$work"
+              go mod init example.com/build-system
+              go get "github.com/c2gohq/c2go_libc@${C2GO_VERSION}"
+              if [ "$adapter" = make ]; then
+                make c2go-generate C2GO_TARGET="$C2GO_TARGET"
+              else
+                cmake -S . -B .c2go-cmake -G Ninja \
+                  -DCMAKE_C_COMPILER=c2go-clang \
+                  -DC2GO_TARGET="$C2GO_TARGET"
+                cmake --build .c2go-cmake --target c2go_translated
+              fi
+              go test ./...
+            )
+          done

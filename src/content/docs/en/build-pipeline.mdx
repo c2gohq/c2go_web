@@ -71,4 +71,4 @@ If a build fails, preserve the `.s` and `.json` pair. Check the manifest package
 
 `c2go-bind` derives the Go package name from the final segment of manifest `pkgpath`. Pass `--pkgname` only when they genuinely differ—for example, import path `github.com/c2gohq/c2go_libc` with source clause `package libc`.
 
-Next, [export a C API to Go](/en/docs/export-c/) before introducing managed memory.
+Next, [export a C API to Go](/en/docs/export-c/). When moving beyond manual commands, use the [Makefile and CMake integration guide](/en/docs/build-system-integration/).

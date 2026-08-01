@@ -61,6 +61,9 @@ for (const locale of locales) {
         `${filename}: c2go-bind package paths come from the manifest; the retired -pkg/--pkg flag must not appear`,
       );
     }
+    if (/\bc2go-ar\b/.test(source)) {
+      throw new Error(`${filename}: the retired c2go-ar tool must not appear`);
+    }
     const order = frontmatter.match(/^order:\s*(\d+)$/m);
     if (!order) throw new Error(`${filename}: integer order is required`);
     orders.push(Number(order[1]));

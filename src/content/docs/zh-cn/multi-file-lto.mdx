@@ -78,4 +78,6 @@ binder 会精确去重，并拒绝符号、类型、全局变量、linkname、GC
 
 把每个 `.s` 与其 manifest 视为不可拆分的一对。cache key 必须包含 target triple、package path、优化级别和协同工具链版本。不要在未经过 `c2go-bind` 生成目标选择结构的情况下，把不同 OS 产物塞进同一个 package。
 
+可直接采用的 Makefile 规则、有限的 `AR=c2go-lto` 兼容边界以及 CMake custom target，见[接入现有构建系统](/zh-cn/docs/build-system-integration/)。
+
 项目构建协调完成后，继续学习[从 C 调用 Go](/zh-cn/docs/call-go/)。

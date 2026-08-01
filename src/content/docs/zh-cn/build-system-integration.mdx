@@ -1,0 +1,221 @@
+---
+title: 接入现有构建系统
+description: 将 Makefile 与 CMake 项目改造成 C2Go package，同时避免继续套用已经不成立的 native link 模型。
+locale: zh-cn
+section: guides
+order: 9
+release: v0.20260729.0-rc.5
+sourceLinks:
+  - label: 多文件 driver 契约
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/test/Driver/c2go-multifile.c
+  - label: c2go-lto archive 兼容测试
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/llvm/test/tools/c2go-lto/wf2-archive-roundtrip.test
+  - label: c2go-bind archive 输入
+    url: https://github.com/c2gohq/c2go_bind/blob/v0.20260729.0-rc.5/README.md#usage
+---
+
+`c2go-clang` 可以接受常见的预处理与编译参数，但 C2Go 不是整条 native 编译、链接管线的无条件替代品。替换边界最终落在一个生成的 Go package：
+
+```text
+.c ──c2go-clang -c -emit-llvm──▶ .o（LLVM bitcode）
+ .o 集合 ──c2go-lto 充当 AR────▶ .a（.s + manifest member）
+ .a ──c2go-bind────────────────▶ 生成的 .go + .s package
+ package ──go build/test───────▶ 最终程序
+```
+
+不要把 C2Go bitcode 或生成的 Plan 9 汇编交给系统 linker。最终链接属于 Go command。
+
+## 选择接入层级
+
+| 现有项目形状                                | 推荐方式                                                                                       |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| 源码列表明确的小型 library                  | 一次把全部 translation unit 交给 `c2go-clang`，参见[多文件项目](/zh-cn/docs/multi-file-lto/)。 |
+| 已经把多个 object 打成一个 `.a` 的 Makefile | 保留 `CC -c → .o`，把 archive 创建替换为 `c2go-lto`；`.o` 内容必须是 LLVM bitcode。            |
+| CMake static library                        | 保留 `add_library(... STATIC ...)`，让 `.o` 生成 bitcode，并替换该 static archive rule。       |
+| configure probe、代码生成器或 host 工具     | 继续用 host C compiler 构建和运行它们；只有目标 library 源码进入 C2Go。                        |
+
+迁移时从一个 library target 开始，不要直接替换整个仓库。先排除 native 命令行入口、构建期生成器、C++ 源码、依赖 native executable 的测试以及尚不支持的平台汇编；明确它们在 Go 侧的替代方式后再逐项接回。
+
+## 推荐的 Makefile 规则
+
+下面的写法保留逐文件增量编译，让 Make 能跟踪项目头文件，并确保 `c2go-lto` 一次看到完整 translation unit 集合。如果生成 package 和 C 源码位于同一个 Go module，应把 C 源码放在点号开头的目录下，避免 Go command 把普通 `.c` 文件识别成 package 源码。
+
+```make
+C2GO_CLANG ?= c2go-clang
+C2GO_AR ?= c2go-lto
+C2GO_BIND ?= c2go-bind
+
+C2GO_TARGET ?= x86_64-unknown-linux-goabi
+C2GO_PACKAGE ?= example.com/acme/engine
+C2GO_GO_OUT ?= engine
+C2GO_CPPFLAGS ?= -I.c2go-src/include
+C2GO_CFLAGS ?= -std=c17 -O2
+
+C2GO_BUILD := .c2go-build/$(C2GO_TARGET)
+C2GO_SOURCES := \
+	.c2go-src/parser.c \
+	.c2go-src/storage.c
+C2GO_OBJECTS := $(patsubst .c2go-src/%.c,$(C2GO_BUILD)/%.o,$(C2GO_SOURCES))
+C2GO_DEPFILES := $(C2GO_OBJECTS:.o=.d)
+C2GO_ARCHIVE := $(C2GO_BUILD)/engine.a
+
+.PHONY: c2go-generate
+c2go-generate: $(C2GO_ARCHIVE)
+	@mkdir -p $(C2GO_GO_OUT)
+	$(C2GO_BIND) --goname=engine --out=$(C2GO_GO_OUT) $<
+
+$(C2GO_ARCHIVE): $(C2GO_OBJECTS)
+	$(C2GO_AR) rcs $@ $^
+
+$(C2GO_BUILD)/%.o: .c2go-src/%.c
+	@mkdir -p $(@D)
+	$(C2GO_CLANG) --target=$(C2GO_TARGET) \
+		-fc2go -fc2go-package=$(C2GO_PACKAGE) \
+		$(C2GO_CPPFLAGS) $(C2GO_CFLAGS) -emit-llvm \
+		-MMD -MP -MF $(@:.o=.d) -MT $@ \
+		-c $< -o $@
+
+-include $(C2GO_DEPFILES)
+```
+
+把最终 import path 和 target triple 传给目标：
+
+```sh
+make c2go-generate \
+  C2GO_TARGET=x86_64-unknown-linux-goabi \
+  C2GO_PACKAGE=example.com/acme/engine
+
+go test ./...
+```
+
+`.o` 后缀保留了构建系统原有的 object graph，但文件内容是 LLVM bitcode，不是 native machine code。生成的 archive 虽然使用普通 `ar` 容器，但有效成员是 Plan 9 汇编与对应 manifest；它应交给 `c2go-bind`，而不是 native linker。
+
+这条路径必须带 `-emit-llvm`；使用 `-flto` 让 Clang 写出 bitcode wrapper `.o` 也等价。当前普通的 `-fc2go -c` 如果两者都不带，会生成 native ELF/Mach-O/COFF object，`c2go-lto` 无法读取。
+
+依赖文件会覆盖项目头文件。target、package path、优化参数以及配套 SDK release 都属于 cache key；其中任何一项变化时，应使用不同 build directory 或使旧 bitcode 失效。
+
+## 直接替换 CC 与 AR
+
+`c2go-lto` 能识别常见的 archive 写入命令形式。如果静态库 Makefile 已经逐源码调用 compiler，并用完整 object 列表一次调用 archiver，就可以保留原有 `.o`、`.a` 依赖图：
+
+```sh
+export C2GO_TARGET=x86_64-unknown-linux-goabi
+export C2GO_PACKAGE=example.com/acme/engine
+
+make libengine.a \
+  CC=c2go-clang \
+  AR=c2go-lto \
+  RANLIB=: \
+  CFLAGS="--target=$C2GO_TARGET -fc2go -fc2go-package=$C2GO_PACKAGE -O2 -emit-llvm"
+
+c2go-bind --goname=engine --out=engine path/to/libengine.a
+```
+
+`RANLIB=:` 使用 POSIX shell 的 no-op。非 POSIX Make 应使用对应机制关闭 finish step。不要把 `RANLIB` 指向 `c2go-lto`：该工具支持包含 `r`、`c` 或 `q` 的 archive 创建命令，不支持单独的 ranlib 风格 `s` 操作。
+
+同时满足以下条件时，这是一条受支持的兼容路径：
+
+- 每个 `CC -c` 结果只作为 bitcode 输入；
+- archive recipe 会用**完整** object 列表一次调用 `AR`；
+- 后续规则不会运行 `ld`、链接 executable、使用 native `nm`/`strip` 检查 object，也不依赖 native symbol table；
+- 可以关闭 `ranlib` 步骤；
+- 项目不会逐个 member 增量追加 archive。
+
+archive 兼容模式会根据本次调用收到的输入重建整个 C2Go archive，不会更新已有 archive。如果原始规则不满足任一条件，应像前一个 Makefile 一样增加明确的 C2Go target，而不是全局覆盖 `CC` 与 `AR`。
+
+## 直接替换 CMake static library
+
+CMake 也可以保留原有 `source → .o → static library` 依赖图。仅设置 `CMAKE_C_COMPILER=c2go-clang` 仍不完整：目标必须生成 bitcode object，archive 创建规则必须改为 `c2go-lto`，结束阶段不能再跑 `ranlib`，最后还要把 archive 交给 `c2go-bind`。
+
+下面的写法适用于 static C library 都要迁移到 C2Go 的独立 adapter project 或目录：
+
+```cmake
+cmake_minimum_required(VERSION 3.20)
+set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
+project(engine_c2go LANGUAGES C)
+
+# 不要把 host macOS SDK 自动注入真正的 C2Go 编译命令。
+if(APPLE)
+  set(CMAKE_OSX_SYSROOT "" CACHE PATH "C2Go does not use host libc headers" FORCE)
+endif()
+
+find_program(C2GO_LTO NAMES c2go-lto REQUIRED)
+find_program(C2GO_BIND NAMES c2go-bind REQUIRED)
+
+set(C2GO_TARGET "x86_64-unknown-linux-goabi" CACHE STRING "C2Go target triple")
+set(C2GO_PACKAGE "example.com/acme/engine" CACHE STRING "Go import path")
+set(C2GO_GO_OUT "${CMAKE_CURRENT_SOURCE_DIR}/engine" CACHE PATH "Generated Go package")
+
+# CMake 会先删除旧 archive，再把完整 object 列表交给这条规则。
+set(CMAKE_C_ARCHIVE_CREATE "\"${C2GO_LTO}\" qc <TARGET> <OBJECTS>")
+set(CMAKE_C_ARCHIVE_FINISH "\"${CMAKE_COMMAND}\" -E true")
+
+add_library(engine_c2go STATIC
+  .c2go-src/parser.c
+  .c2go-src/storage.c
+)
+target_include_directories(engine_c2go PRIVATE .c2go-src/include)
+target_compile_options(engine_c2go PRIVATE
+  "--target=${C2GO_TARGET}"
+  -fc2go
+  "-fc2go-package=${C2GO_PACKAGE}"
+  -std=c17
+  -O2
+  -emit-llvm
+)
+
+# 在所有 host OS 上都强制生成 c2go-bind 能识别的 archive 名称。
+set_target_properties(engine_c2go PROPERTIES
+  PREFIX ""
+  SUFFIX ".a"
+  OUTPUT_NAME "engine"
+)
+
+add_custom_command(
+  TARGET engine_c2go POST_BUILD
+  COMMAND "${CMAKE_COMMAND}" -E make_directory "${C2GO_GO_OUT}"
+  COMMAND "${C2GO_BIND}"
+          --goname=engine
+          "--out=${C2GO_GO_OUT}"
+          "$<TARGET_FILE:engine_c2go>"
+  VERBATIM
+)
+```
+
+配置时选择 C2Go compiler。Ninja 在各支持 host 上的行为最一致：
+
+```sh
+cmake -S . -B build -G Ninja \
+  -DCMAKE_C_COMPILER=c2go-clang \
+  -DC2GO_TARGET=x86_64-unknown-linux-goabi \
+  -DC2GO_PACKAGE=example.com/acme/engine
+cmake --build build --target engine_c2go
+go test ./...
+```
+
+CMake 的编译命令仍然以 `-c source.c -o source.c.o` 结束；`-emit-llvm` 只是把 `.o` 内容改成 bitcode。static-library 阶段会先删除旧 archive，再执行 `c2go-lto qc engine.a <全部 objects>`，因此满足非增量 archive 契约。POST_BUILD binder 随后把这个 archive 变成 Go package。
+
+`CMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY` 让初始 compiler check 不再依赖 native executable linker，但不会让 `try_run` 变得可用。CMake 在 macOS 上通常会自动注入 Apple SDK sysroot，因此 adapter 会在创建 C2Go target 前清空它。只有经过明确审核的 native boundary 才应重新加入 host SDK header，不能让它成为意外的 libc fallback。
+
+archive rule 在当前 CMake directory 内生效。如果同一个目录还构建 native static library、host tool，或必须使用普通 archiver 的目标，应把它们放在 adapter 目录之外；另一种做法是使用独立的 `LANGUAGES NONE` custom target 显式执行 C2Go pipeline。
+
+## configure 与 feature detection 项目
+
+Autoconf 和 CMake 项目经常编译并运行小型 native probe。GoABI 产物无法完成 `try_run`。在上面的直接 CMake 方案里，project-level check 还会早于 target-specific C2Go option 执行，因此不能自动把结果当成目标环境事实。
+
+1. 只描述构建机器的 host generator 与 probe，继续使用普通 host compiler。
+2. target compile-only check 应使用 library 完全相同的 `c2go-clang --target=... -fc2go` 参数。
+3. target `try_run` 使用项目公开的 cross-compilation cache value；target OS 或 C data model 不同时，不能拿 host 结果代替。
+4. 对 C2Go 不支持的 host facility 使用经过审核的明确配置值。
+
+不要为了让 probe 通过而加入 host libc include directory。SDK 已提供配套头文件；将宿主头文件混入 C2Go 编译可能静默选择错误 ABI 或声明。
+
+## 多目标与发布规则
+
+- 按 target triple 隔离中间产物；不同 package path、target、优化模式或 SDK release 之间不能复用 bitcode。
+- 多个目标写入同一个 Go package 时，主要产物名应带 Go 文件名后缀，例如 `engine_linux_amd64`、`engine_darwin_arm64`，并让 `--goname` 与 assembly/archive stem 使用相同名称。
+- binder 输出目录应专用于生成文件。除了主 `.go` 与 `.s`，`c2go-bind` 还会写 ABI guard、runtime glue 和协议记录。
+- 发布 target 必须加入独立的 `-O0` [栈指针逃逸审计](/zh-cn/docs/stack-escape-audit/)，不能用 `--c2go-escape-nonfatal` 降级。
+- 生成后运行 `go test ./...`。仅编译成功无法验证 Go assembly、runtime linkage 和导出 API。
+
+构建边界稳定后，继续阅读[从 C 调用 Go](/zh-cn/docs/call-go/)。

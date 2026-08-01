@@ -47,6 +47,13 @@ export const docsNavigation: NavSection[] = [
         slug: "multi-file-lto",
         title: { en: "Multi-file projects", "zh-cn": "多文件项目" },
       },
+      {
+        slug: "build-system-integration",
+        title: {
+          en: "Existing build systems",
+          "zh-cn": "接入现有构建系统",
+        },
+      },
     ],
   },
   {
