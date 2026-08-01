@@ -54,14 +54,14 @@ c2go-clang --target=aarch64-apple-darwin -fc2go -std=gnu17 ...
 
 算术、比较、逻辑、位运算、赋值、成员访问、下标、条件运算符和逗号运算符遵循 Clang 的 C 规则。指针跨越内存世界时会增加诊断：
 
-| 操作                         | C2Go 规则                                                          |
-| ---------------------------- | ------------------------------------------------------------------ |
-| 获取 `&local`                | 指针只在当前 frame 内使用时合法；不能被堆或全局状态长期保留。      |
-| Managed pointer 转整数       | 会产生 warning，因为整数会对精确指针跟踪隐藏该值。                 |
-| Managed 转 unmanaged pointer | 根据 GC 可见性是否丢失产生 warning 或 error。                      |
-| Managed record pointer 互转  | 两种 pointer layout 不兼容时拒绝。                                 |
-| 函数调用                     | 声明决定它是内部 C2Go 调用、Go symbol 调用还是 native ABI 调用。   |
-| 函数指针                     | internal、callback、callout 与 raw native pointer 是不同边界形状。 |
+| 操作                         | C2Go 规则                                                                                                                                                                     |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 获取自动局部对象的 `&local`  | 合法性不受单个调用 frame 限制：对象仍在生命周期内、callee 不保留指针时，可以沿同步调用链使用。不能返回该指针，也不能让它逃逸到 heap、全局、异步任务或会保留它的 native 状态。 |
+| Managed pointer 转整数       | 会产生 warning，因为整数会对精确指针跟踪隐藏该值。                                                                                                                            |
+| Managed 转 unmanaged pointer | 根据 GC 可见性是否丢失产生 warning 或 error。                                                                                                                                 |
+| Managed record pointer 互转  | 两种 pointer layout 不兼容时拒绝。                                                                                                                                            |
+| 函数调用                     | 声明决定它是内部 C2Go 调用、Go symbol 调用还是 native ABI 调用。                                                                                                              |
+| 函数指针                     | internal、callback、callout 与 raw native pointer 是不同边界形状。                                                                                                            |
 
 内存规则见[内存与 Go GC](/zh-cn/docs/managed-unmanaged/)，函数指针跨界见[回调](/zh-cn/docs/callbacks/)。
 

@@ -54,14 +54,14 @@ In `-std=c2go23`, Clang also recognizes C23 spellings such as `alignas`, `aligno
 
 Arithmetic, comparison, logical, bitwise, assignment, member access, subscripting, the conditional operator, and the comma operator use Clang's C rules. These operations gain extra diagnostics when pointers cross memory worlds:
 
-| Operation                                 | C2Go rule                                                                                        |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| Taking `&local`                           | Valid while the pointer stays within the frame; it must not be retained by heap or global state. |
-| Managed pointer to integer                | Accepted with a warning because the integer hides the pointer from precise tracking.             |
-| Managed to unmanaged pointer              | Warned or rejected according to where GC visibility would be lost.                               |
-| Cast between managed record pointer types | Rejected when their pointer layouts are incompatible.                                            |
-| Function call                             | The declaration determines an internal C2Go call, Go-symbol call, or native ABI call.            |
-| Function pointer                          | Internal, callback, callout, and raw native pointers are distinct boundary shapes.               |
+| Operation                                 | C2Go rule                                                                                                                                                                                                                        |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Taking `&local` of an automatic object    | Not limited to one call frame: it may be used along a synchronous call chain while the object is alive and callees do not retain it. It must not be returned or escape to heap, global, asynchronous, or retaining native state. |
+| Managed pointer to integer                | Accepted with a warning because the integer hides the pointer from precise tracking.                                                                                                                                             |
+| Managed to unmanaged pointer              | Warned or rejected according to where GC visibility would be lost.                                                                                                                                                               |
+| Cast between managed record pointer types | Rejected when their pointer layouts are incompatible.                                                                                                                                                                            |
+| Function call                             | The declaration determines an internal C2Go call, Go-symbol call, or native ABI call.                                                                                                                                            |
+| Function pointer                          | Internal, callback, callout, and raw native pointers are distinct boundary shapes.                                                                                                                                               |
 
 See [Memory and the Go GC](/en/docs/managed-unmanaged/) for the memory rules and [Callbacks](/en/docs/callbacks/) for function-pointer crossings.
 

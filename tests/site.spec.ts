@@ -123,6 +123,9 @@ test("the critical stack limitation is prominent only on the limitations page", 
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     "栈指针逃逸审计",
   );
+  await expect(page.locator("article.docs-article")).toContainText(
+    "这种跨 frame 使用本身不是逃逸",
+  );
   await expect(
     page.getByRole("heading", {
       level: 2,
@@ -146,6 +149,9 @@ test("language reference separates C syntax from C2Go extensions", async ({
   await expect(
     page.getByText("_Imaginary", { exact: true }).first(),
   ).toBeVisible();
+  await expect(page.locator("article.docs-article")).toContainText(
+    "it may be used along a synchronous call chain while the object is alive and callees do not retain it",
+  );
 
   await page.getByRole("link", { name: "C2Go extensions" }).last().click();
   await expect(page).toHaveURL(/\/en\/docs\/c2go-extensions\/$/);

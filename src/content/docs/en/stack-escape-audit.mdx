@@ -39,7 +39,9 @@ c2go_extern void save_local(struct Box *box) {
 }
 ```
 
-The same lifetime bug exists when a stack address is retained in the native heap, a Go-managed heap object, a mutable global, or another object that can outlive the frame. Passing a stack pointer to a synchronous callee is not itself an escape if the callee does not retain it.
+`&local` is not limited to one call frame. The pointer may be passed and used along a synchronous call chain while the automatic object is alive and no callee retains it; that cross-frame use is not itself an escape.
+
+Escape means returning the pointer or handing it to state that may retain it independently of the current synchronous call chain, such as asynchronous work, the native heap, a Go-managed heap object, or a mutable global. Such state may keep the old address after the object dies or the goroutine stack moves.
 
 ## Use both checks
 
