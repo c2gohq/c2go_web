@@ -2,7 +2,7 @@
 title: GC-aware allocation
 description: Allocate typed C objects on the Go heap and preserve their pointer layout.
 locale: en
-section: concepts
+section: guides
 order: 7
 release: v0.20260729.0-rc.5
 sourceLinks:
@@ -84,6 +84,6 @@ Never call `free` on a typed Go-heap pointer, and do not assume a native library
 
 ## Type information constraints
 
-`c2go_typeinfo` requires a named, complete record type. Anonymous records and reserved runtime identifiers are rejected. Managed record layout follows Go-compatible rules, so packed layout and field-specific alignment overrides are not available.
+`c2go_typeinfo` requires a named, complete record type. Anonymous records and reserved runtime identifiers are rejected. Packed or custom-aligned managed records produce warnings and target-specific generated layouts; prefer natural layout for portable public types.
 
-Next, make a C2Go function and managed record visible as a Go API in [Export C to Go](/en/docs/export-c/).
+Next, scale the same rules across [multi-file projects and LTO](/en/docs/multi-file-lto/).

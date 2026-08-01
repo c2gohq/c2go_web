@@ -1,11 +1,22 @@
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
-import { flatDocs } from "../src/data/navigation";
+import { docsNavigation, flatDocs } from "../src/data/navigation";
 import { release } from "../src/data/release";
 
 const root = path.resolve("src/content/docs");
 const locales = ["en", "zh-cn"] as const;
 const expected = flatDocs.map((item) => item.slug).sort();
+const expectedMetadata = new Map<string, { section: string; order: number }>();
+let navigationOrder = 0;
+for (const section of docsNavigation) {
+  for (const item of section.items) {
+    navigationOrder += 1;
+    expectedMetadata.set(item.slug, {
+      section: section.id,
+      order: navigationOrder,
+    });
+  }
+}
 
 function readFrontmatter(source: string) {
   const match = source.match(/^---\n([\s\S]*?)\n---/);
@@ -47,6 +58,19 @@ for (const locale of locales) {
     const order = frontmatter.match(/^order:\s*(\d+)$/m);
     if (!order) throw new Error(`${filename}: integer order is required`);
     orders.push(Number(order[1]));
+    const section = frontmatter.match(/^section:\s*([\w-]+)$/m);
+    if (!section) throw new Error(`${filename}: section is required`);
+    const metadata = expectedMetadata.get(slug);
+    if (!metadata)
+      throw new Error(`${filename}: slug is missing from navigation`);
+    if (
+      section[1] !== metadata.section ||
+      Number(order[1]) !== metadata.order
+    ) {
+      throw new Error(
+        `${filename}: frontmatter is ${section[1]}/${order[1]}, navigation is ${metadata.section}/${metadata.order}`,
+      );
+    }
     if (!source.match(/^##\s+/m)) {
       throw new Error(
         `${filename}: at least one level-two heading is required`,

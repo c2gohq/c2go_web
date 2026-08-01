@@ -11,9 +11,7 @@ test("English landing page exposes the real pipeline", async ({ page }) => {
     page.locator(".pipeline-section").getByText("c2go-bind"),
   ).toBeVisible();
   await expect(page.getByText("c2go-libc").first()).toBeVisible();
-  await expect(
-    page.getByText("Stack pointers must not escape to the heap"),
-  ).toBeVisible();
+  await expect(page.locator(".safety-notice")).toHaveCount(0);
   await expect(
     page.getByRole("link", { name: /Get started/ }).first(),
   ).toHaveAttribute("href", "/en/docs/hello-world/");
@@ -33,14 +31,24 @@ test("language switch preserves the document slug and preference", async ({
     .toBe("zh-cn");
 });
 
-test("every documentation page exposes the stack escape release gate", async ({
+test("the critical stack limitation is prominent only on the limitations page", async ({
   page,
 }, testInfo) => {
   test.skip(
     testInfo.project.name === "mobile",
-    "The same notice is covered by the mobile navigation test.",
+    "Notice placement is independent of the viewport.",
   );
+
+  await page.goto("/en/docs/overview/");
+  await expect(page.locator(".safety-notice")).toHaveCount(0);
+  await expect(
+    page.getByRole("link", { name: "Platforms and current limitations" }),
+  ).toHaveAttribute("href", "/en/docs/platforms-limitations/");
+
   await page.goto("/en/docs/installation/");
+  await expect(page.locator(".safety-notice")).toHaveCount(0);
+
+  await page.goto("/en/docs/platforms-limitations/");
   const notice = page.locator(".safety-notice");
   await expect(notice).toContainText("Stack pointers must not escape");
   await expect(notice.getByRole("link")).toHaveAttribute(
@@ -50,7 +58,7 @@ test("every documentation page exposes the stack escape release gate", async ({
 
   await page.goto("/zh-cn/docs/stack-escape-audit/");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "栈指针逃逸安全",
+    "栈指针逃逸审计",
   );
   await expect(
     page.getByRole("heading", {
@@ -58,20 +66,30 @@ test("every documentation page exposes the stack escape release gate", async ({
       name: "普通 driver 构建不是门禁",
     }),
   ).toBeVisible();
-});
-
-test("top-level product pages expose the stack escape limitation", async ({
-  page,
-}) => {
   for (const pathname of ["/en/components/", "/en/releases/"]) {
     await page.goto(pathname);
-    const notice = page.locator(".safety-notice");
-    await expect(notice).toContainText("Stack pointers must not escape");
-    await expect(notice.getByRole("link")).toHaveAttribute(
-      "href",
-      "/en/docs/stack-escape-audit/",
-    );
+    await expect(page.locator(".safety-notice")).toHaveCount(0);
   }
+});
+
+test("language reference separates C syntax from C2Go extensions", async ({
+  page,
+}) => {
+  await page.goto("/en/docs/c-language-reference/");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "C language quick reference",
+  );
+  await expect(page.getByText("_Thread_local", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("_Imaginary", { exact: true }).first(),
+  ).toBeVisible();
+
+  await page.getByRole("link", { name: "C2Go extensions" }).last().click();
+  await expect(page).toHaveURL(/\/en\/docs\/c2go-extensions\/$/);
+  await expect(page.getByText("C2GO_DYN(name)", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("c2go_extern", { exact: true }).first(),
+  ).toBeVisible();
 });
 
 test("root route selects Chinese from the browser locale", async ({
@@ -153,8 +171,10 @@ test("core pages have no serious accessibility violations", async ({
   for (const pathname of [
     "/en/",
     "/en/docs/hello-world/",
+    "/en/docs/c-language-reference/",
     "/en/docs/stack-escape-audit/",
     "/zh-cn/docs/managed-unmanaged/",
+    "/zh-cn/docs/platforms-limitations/",
   ]) {
     await page.goto(pathname);
     const results = await new AxeBuilder({ page }).analyze();
@@ -185,16 +205,25 @@ test("mobile documentation has no horizontal overflow and opens the chapter draw
     testInfo.project.name !== "mobile",
     "Mobile-only navigation behavior.",
   );
+  for (const pathname of [
+    "/en/docs/hello-world/",
+    "/en/docs/c-language-reference/",
+    "/en/docs/c2go-extensions/",
+    "/zh-cn/docs/platforms-limitations/",
+  ]) {
+    await page.goto(pathname);
+    await expect
+      .poll(() =>
+        page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+      )
+      .toBe(true);
+  }
+
   await page.goto("/en/docs/hello-world/");
-  await expect
-    .poll(() =>
-      page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
-    )
-    .toBe(true);
   await page.getByRole("button", { name: /Documentation menu/ }).click();
   await expect(page.locator(".docs-sidebar")).toHaveClass(/is-open/);
   await expect(page.locator(".docs-sidebar")).toBeInViewport();
   await expect(
-    page.getByRole("link", { name: "The build pipeline", exact: true }),
+    page.getByRole("link", { name: "How the build works", exact: true }),
   ).toBeVisible();
 });

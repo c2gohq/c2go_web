@@ -1,0 +1,91 @@
+---
+title: C 语言速查
+description: 快速检索 C 关键字、语法、预处理，以及在 C2Go 下语义发生变化的写法。
+locale: zh-cn
+section: reference
+order: 13
+release: v0.20260729.0-rc.5
+sourceLinks:
+  - label: C2Go 语言模式定义
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/include/clang/Basic/LangStandards.def#L113-L121
+  - label: C2Go 语言默认项
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/lib/Frontend/CompilerInvocation.cpp#L1806-L1833
+  - label: 变长数组拒绝逻辑
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/lib/Sema/SemaChecking.cpp#L2840-L2860
+---
+
+审阅现有 C 源码树时，可以先查这一页。C2Go 保留 Clang 的 C parser、preprocessor 和大多数普通表达式语义，再增加 Go 栈、GC 可见内存和跨 runtime 调用规则。上游 Clang 能接受某种写法，并不代表该写法的所有 ABI 用法都已被 C2Go 支持。
+
+## 语言模式
+
+当前 SDK 在启用 `-fc2go`、但没有显式传 `-std` 时使用 C17，`__STDC_VERSION__` 为 `201710L`。需要可复现构建时，应明确写出项目使用的 dialect：
+
+```sh
+c2go-clang --target=aarch64-apple-darwin -fc2go -std=c17 ...
+c2go-clang --target=aarch64-apple-darwin -fc2go -std=gnu17 ...
+```
+
+`-std=c2go23` 会选择 Clang 的 C23 语言基线，并同时启用 GNU 与 C2Go extensions；`-std=c2go` 是它的别名。该选项不会取消本页列出的 runtime 与 ABI 限制。
+
+## C17 关键字速查
+
+“普通”表示关键字保持常规 C 源码语义；target 相关的算术与 ABI 规则仍然有效。
+
+| 关键字                                                                                                 | C2Go 状态   | 重要边界                                                                                                                        |
+| ------------------------------------------------------------------------------------------------------ | ----------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `break`、`case`、`continue`、`default`、`do`、`else`、`for`、`goto`、`if`、`return`、`switch`、`while` | 普通        | `switch` 可以使用；C2Go 内部禁用 jump table，并改用安全分支。                                                                   |
+| `auto`、`register`、`static`、`typedef`                                                                | 普通        | storage duration 仍决定地址能否活过当前栈帧。                                                                                   |
+| `extern`                                                                                               | C2Go 规则   | 只有声明、没有定义的函数默认是 native import；有定义的函数属于内部 C2Go 代码。Go 符号与刻意的 native 边界应使用显式 C2Go 扩展。 |
+| `_Bool`、`char`、`short`、`int`、`long`、`signed`、`unsigned`、`float`、`double`、`void`、`enum`       | 普通        | 公开边界宽度遵循 target ABI。同一个 Go API 需要跨 Unix/Windows 时优先使用定宽整数。                                             |
+| `struct`、`union`                                                                                      | C2Go 规则   | 普通 record 是 unmanaged；managed record 和带指针 union 必须满足 GC 布局规则。                                                  |
+| `const`、`restrict`、`volatile`                                                                        | 普通        | `volatile` 不提供原子性，也不会让 native pointer 对 GC 可见。                                                                   |
+| `inline`                                                                                               | 普通        | 它是优化/链接规则，不是 C2Go 的内联汇编功能。                                                                                   |
+| `sizeof`、`_Alignof`、`_Generic`、`_Static_assert`                                                     | 普通        | 编译期表达式保持 Clang 语义。                                                                                                   |
+| `_Alignas`                                                                                             | 受布局约束  | 普通对象可以使用；包含 GC 扫描指针的 record 还要遵守 packing/alignment 检查。                                                   |
+| `_Atomic`                                                                                              | 依赖 target | 原子语法和常用受支持宽度可以编译，但每种操作都应在发布 target 上验证；无法路由的 runtime libcall 会 fail closed。               |
+| `_Complex`                                                                                             | 受边界约束  | 内部算术可以使用；complex 不能作为 `c2go_returntype` 的单 slot 字段，native 边界形状还需按 target 验证。                        |
+| `_Thread_local`                                                                                        | C2Go 语义   | storage 通过 C2Go runtime 按 goroutine 解析，而不是 native ELF/Mach-O TLS；这不代表支持 C threads library。                     |
+| `_Noreturn`                                                                                            | 普通        | 声明仍必须与真实控制流一致。                                                                                                    |
+| `_Imaginary`                                                                                           | 不支持      | Clang 会拒绝 imaginary type。                                                                                                   |
+
+在 `-std=c2go23` 下，Clang 还会识别 `alignas`、`alignof`、`bool`、`constexpr`、`false`、`nullptr`、`static_assert`、`thread_local`、`true`、`typeof`、`typeof_unqual` 等 C23 拼写，以及 `_BitInt(N)` 等类型。语法通过只是第一道门禁；边界布局和 target codegen 仍需分别验证。
+
+## 运算符与转换
+
+算术、比较、逻辑、位运算、赋值、成员访问、下标、条件运算符和逗号运算符遵循 Clang 的 C 规则。指针跨越内存世界时会增加诊断：
+
+| 操作                         | C2Go 规则                                                          |
+| ---------------------------- | ------------------------------------------------------------------ |
+| 获取 `&local`                | 指针只在当前 frame 内使用时合法；不能被堆或全局状态长期保留。      |
+| Managed pointer 转整数       | 会产生 warning，因为整数会对精确指针跟踪隐藏该值。                 |
+| Managed 转 unmanaged pointer | 根据 GC 可见性是否丢失产生 warning 或 error。                      |
+| Managed record pointer 互转  | 两种 pointer layout 不兼容时拒绝。                                 |
+| 函数调用                     | 声明决定它是内部 C2Go 调用、Go symbol 调用还是 native ABI 调用。   |
+| 函数指针                     | internal、callback、callout 与 raw native pointer 是不同边界形状。 |
+
+内存规则见 [Managed 与 unmanaged](/zh-cn/docs/managed-unmanaged/)，函数指针跨界见[回调](/zh-cn/docs/callbacks/)。
+
+## 预处理器与 pragma
+
+`#include`、`#define`、条件编译、`#error` 与 `_Pragma` 等普通 directive 使用 Clang preprocessor。当前模式定义：
+
+| 宏                    | 含义                                           |
+| --------------------- | ---------------------------------------------- |
+| `__C2GO__`            | 当前源码正在 C2Go 模式下编译。                 |
+| `__clang_c2go__`      | 当前编译器是处于 C2Go 模式的 C2Go Clang fork。 |
+| `__STDC_NO_VLA__`     | 不提供变长数组。                               |
+| `__STDC_NO_THREADS__` | 不声明支持 ISO C threads library。             |
+| `__STDC_VERSION__`    | 反映当前选择的 C dialect。                     |
+
+`#pragma c2go ...` 是项目专有 pragma family，准确形式和 bit mask 见 [C2Go 扩展速查](/zh-cn/docs/c2go-extensions/)。
+
+## 不支持或需要单独验证的结构
+
+- 变长数组和动态 `alloca` 会被拒绝，因为 C2Go 函数在可移动 goroutine 栈上必须使用固定 frame。
+- 不支持 C++。
+- Clang 不支持 `_Imaginary`。
+- 内联汇编只允许 call-free 且 constraint/instruction 已受支持的写法，详见[内联汇编](/zh-cn/docs/inline-assembly/)。
+- `-std=gnu17` 能解析 GNU/Clang 语法，不等于承诺兼容全部 extension；extension 较多的项目应在每个发布 target 上编译和测试。
+- 某个 header 或函数是否存在属于 `c2go-libc` 覆盖问题，与 C 语言语法是否能解析是两件事。
+
+正式发布阻断项集中列在[平台与当前限制](/zh-cn/docs/platforms-limitations/)。

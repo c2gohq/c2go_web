@@ -1,9 +1,9 @@
 ---
-title: 栈指针逃逸安全
+title: 栈指针逃逸审计
 description: 理解 C2Go 当前无法处理的栈指针逃逸，并把独立 LTO 审计设为发布门禁。
 locale: zh-cn
-section: start
-order: 2
+section: support
+order: 18
 release: v0.20260729.0-rc.5
 sourceLinks:
   - label: 前端栈逃逸诊断
@@ -118,4 +118,4 @@ c2go_extern void save_value(struct Box *box) {
 
 `c2go-lto` 使用全程序 Andersen 风格 points-to 审计，比前端直接模式 warning 更强，但它仍是工程安全检查，不是形式化生命周期证明。opaque native call、错误的内联汇编 constraint，或遗漏在 bitcode 输入集之外的代码都可能隐藏行为。必须保证输入完整、逐个审核 native retention 边界，并保留端到端 Go 测试。
 
-把这项限制纳入构建策略后，再继续[安装 SDK](/zh-cn/docs/installation/)。
+当 compiler、LTO、binder 或 runtime failure 需要按阶段隔离时，继续阅读[故障排查](/zh-cn/docs/troubleshooting/)。

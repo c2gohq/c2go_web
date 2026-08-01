@@ -2,8 +2,8 @@
 title: 构建管线
 description: 跟踪 C 源码如何经过 Clang、C2Go LTO、绑定生成器和 Go 工具链。
 locale: zh-cn
-section: concepts
-order: 5
+section: start
+order: 4
 release: v0.20260729.0-rc.5
 sourceLinks:
   - label: Driver 管线回归测试
@@ -69,4 +69,4 @@ cc1 → LLVM bitcode → c2go-lto → output.s + output.json
 
 构建失败时，先保留 `.s` 与 `.json` 文件对。调试生成 Go 代码前，检查 manifest 中的 target 与 ABI 版本。可以用 `c2go-bind --dry-run` 在不修改输出目录的情况下检查 Go 输出；直接诊断编译管线时使用 `c2go-lto --c2go-print-stats`。
 
-下一章介绍支配整个指针语义的 [managed 与 unmanaged](/zh-cn/docs/managed-unmanaged/) 模型。
+下一章先把一个 [C API 导出给 Go](/zh-cn/docs/export-c/)，再进入 managed memory。

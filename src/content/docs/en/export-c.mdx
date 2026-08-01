@@ -2,8 +2,8 @@
 title: Export C to Go
 description: Expose defined C functions and managed records as generated Go APIs.
 locale: en
-section: concepts
-order: 8
+section: guides
+order: 5
 release: v0.20260729.0-rc.5
 sourceLinks:
   - label: Export naming and public macros
@@ -64,7 +64,7 @@ c2go_extern struct Point translate(
 
 The manifest records size, field offsets, and pointer layout. `c2go-bind` uses those facts to generate a Go-compatible type rather than guessing from host compiler defaults.
 
-Managed records cannot be packed and cannot use per-field alignment overrides. Those layouts have no equivalent under the Go contract.
+Packed or custom-aligned managed records produce C2Go warnings. The current manifest/binder path can describe explicit padding, but the resulting public layout is target-specific and must be checked in the generated Go type. An unmanaged record that contains a GC-scanned data pointer is stricter: packing or custom alignment is rejected because the conservative scanner would miss a shifted pointer word.
 
 ## Names reserved by Go
 
@@ -74,4 +74,4 @@ An exported `init` or `main` function cannot retain a lowercase name. These name
 
 Generated files include ABI/version guards and may include runtime imports, GC metadata, or native-call glue in addition to the visible declarations. Do not copy only the public-looking `.go` file. Keep the complete generated directory and its licensing records together.
 
-The reverse direction—declaring and calling an existing Go symbol—is covered in [Call Go from C](/en/docs/call-go/).
+Next, learn how [managed and unmanaged](/en/docs/managed-unmanaged/) declarations keep exported pointer layouts visible to the GC.

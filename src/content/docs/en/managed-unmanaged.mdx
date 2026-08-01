@@ -2,7 +2,7 @@
 title: Managed and unmanaged
 description: Learn the two memory worlds C2Go uses to keep the Go garbage collector sound.
 locale: en
-section: concepts
+section: guides
 order: 6
 release: v0.20260729.0-rc.5
 sourceLinks:
@@ -93,10 +93,12 @@ C2Go rejects operations that would make the GC's view structurally wrong:
 
 - bit-casting between managed pointer types with incompatible GC layouts;
 - putting a managed field inside an unmanaged record;
-- using packed or per-field alignment overrides on managed records; and
+- packing or custom-aligning an unmanaged record that contains a GC-scanned data pointer; and
 - ambiguous overlapping pointer fields in a managed union representation.
 
-Do not work around these errors with integer casts. Redesign the boundary: keep native storage unmanaged, or copy data into a managed representation with an explicit lifetime.
+Packed or custom-aligned managed records are diagnosed as warnings rather than these hard errors. Their generated Go layout is target-specific, so inspect it and test every target before exposing it as a public type.
+
+Do not work around hard layout errors with integer casts. Redesign the boundary: keep native storage unmanaged, or copy data into a managed representation with an explicit lifetime.
 
 ## Boundary rule of thumb
 

@@ -1489,14 +1489,6 @@ a {
 .safety-notice > a:hover {
   color: var(--text);
 }
-.home-safety-wrap {
-  width: min(calc(100% - 40px), var(--content-width));
-  margin: 42px auto 0;
-}
-.home-safety-wrap .safety-notice {
-  margin: 0;
-}
-
 :root[data-theme="dark"] .safety-notice small,
 :root[data-theme="dark"] .safety-notice > a {
   color: #ff927e;
@@ -1907,10 +1899,6 @@ a {
 }
 
 @media (max-width: 520px) {
-  .home-safety-wrap {
-    width: min(calc(100% - 28px), var(--content-width));
-    margin-top: 28px;
-  }
   .safety-notice {
     grid-template-columns: 1fr;
     gap: 10px;

@@ -4,10 +4,9 @@ import { docsPath, type Locale } from "@/data/navigation";
 
 interface Props {
   locale: Locale;
-  context?: "home" | "docs";
 }
 
-const { locale, context = "docs" } = Astro.props;
+const { locale } = Astro.props;
 const cn = locale === "zh-cn";
 const copy = cn
   ? {
@@ -24,10 +23,7 @@ const copy = cn
     };
 ---
 
-<aside
-  class:list={["safety-notice", context === "home" && "on-home"]}
-  aria-label={copy.eyebrow}
->
+<aside class="safety-notice" aria-label={copy.eyebrow}>
   <span class="safety-icon"><Icon name="warning" size={24} /></span>
   <div>
     <small>{copy.eyebrow}</small>

@@ -14,13 +14,6 @@ export const docsNavigation: NavSection[] = [
     items: [
       { slug: "overview", title: { en: "Overview", "zh-cn": "项目概览" } },
       {
-        slug: "stack-escape-audit",
-        title: {
-          en: "Stack escape safety",
-          "zh-cn": "栈指针逃逸安全",
-        },
-      },
-      {
         slug: "installation",
         title: { en: "Install the SDK", "zh-cn": "安装 SDK" },
       },
@@ -28,15 +21,19 @@ export const docsNavigation: NavSection[] = [
         slug: "hello-world",
         title: { en: "Hello World", "zh-cn": "Hello World" },
       },
+      {
+        slug: "build-pipeline",
+        title: { en: "How the build works", "zh-cn": "构建如何工作" },
+      },
     ],
   },
   {
-    id: "concepts",
-    title: { en: "Core concepts", "zh-cn": "核心概念" },
+    id: "guides",
+    title: { en: "Using C2Go", "zh-cn": "使用 C2Go" },
     items: [
       {
-        slug: "build-pipeline",
-        title: { en: "The build pipeline", "zh-cn": "构建管线" },
+        slug: "export-c",
+        title: { en: "Export C to Go", "zh-cn": "将 C 导出给 Go" },
       },
       {
         slug: "managed-unmanaged",
@@ -47,8 +44,8 @@ export const docsNavigation: NavSection[] = [
         title: { en: "GC-aware allocation", "zh-cn": "GC 感知分配" },
       },
       {
-        slug: "export-c",
-        title: { en: "Export C to Go", "zh-cn": "将 C 导出给 Go" },
+        slug: "multi-file-lto",
+        title: { en: "Multi-file projects", "zh-cn": "多文件项目" },
       },
     ],
   },
@@ -67,17 +64,21 @@ export const docsNavigation: NavSection[] = [
       { slug: "callbacks", title: { en: "Callbacks", "zh-cn": "回调" } },
       {
         slug: "data-types",
-        title: { en: "Data types and errno", "zh-cn": "数据类型与 errno" },
+        title: { en: "Boundary data types", "zh-cn": "边界数据类型" },
       },
     ],
   },
   {
-    id: "build",
-    title: { en: "Build and reference", "zh-cn": "构建与参考" },
+    id: "reference",
+    title: { en: "Language reference", "zh-cn": "语言参考" },
     items: [
       {
-        slug: "multi-file-lto",
-        title: { en: "Multi-file projects", "zh-cn": "多文件项目" },
+        slug: "c-language-reference",
+        title: { en: "C keywords and syntax", "zh-cn": "C 关键字与语法" },
+      },
+      {
+        slug: "c2go-extensions",
+        title: { en: "C2Go extensions", "zh-cn": "C2Go 扩展速查" },
       },
       {
         slug: "inline-assembly",
@@ -87,9 +88,25 @@ export const docsNavigation: NavSection[] = [
         slug: "cli-reference",
         title: { en: "CLI reference", "zh-cn": "命令行参考" },
       },
+    ],
+  },
+  {
+    id: "support",
+    title: { en: "Limits and support", "zh-cn": "限制与支持" },
+    items: [
       {
         slug: "platforms-limitations",
-        title: { en: "Platforms and limits", "zh-cn": "平台与限制" },
+        title: {
+          en: "Platforms and limitations",
+          "zh-cn": "平台与当前限制",
+        },
+      },
+      {
+        slug: "stack-escape-audit",
+        title: {
+          en: "Stack escape audit",
+          "zh-cn": "栈指针逃逸审计",
+        },
       },
       {
         slug: "troubleshooting",

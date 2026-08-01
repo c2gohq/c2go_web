@@ -1,9 +1,9 @@
 ---
-title: Stack escape safety
+title: Stack escape audit
 description: Understand C2Go's stack-pointer escape limitation and make the standalone LTO audit a release gate.
 locale: en
-section: start
-order: 2
+section: support
+order: 18
 release: v0.20260729.0-rc.5
 sourceLinks:
   - label: Frontend stack-escape diagnostic
@@ -118,4 +118,4 @@ If native code owns the retained object, use the allocator required by that nati
 
 `c2go-lto` uses a whole-program Andersen-style points-to audit and is much stronger than the frontend's direct-pattern warning, but it is still an engineering safety check rather than a formal lifetime proof. Opaque native calls, incorrect inline assembly constraints, or code omitted from the bitcode set can hide behavior. Keep the input set complete, review every native retention boundary, and add end-to-end Go tests.
 
-Continue with [Install the SDK](/en/docs/installation/) once this limitation is part of your build policy.
+Use [Troubleshooting](/en/docs/troubleshooting/) when a compiler, LTO, binder, or runtime failure needs to be isolated by stage.

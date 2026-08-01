@@ -1,7 +1,6 @@
 ---
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import Icon from "./Icon.astro";
-import SafetyNotice from "./SafetyNotice.astro";
 import { docsPath, type Locale } from "@/data/navigation";
 import { release } from "@/data/release";
 
@@ -187,10 +186,6 @@ result := translated.Add(20, 22)`}</code></pre>
         </div>
       </div>
     </section>
-
-    <div class="home-safety-wrap">
-      <SafetyNotice locale={locale} context="home" />
-    </div>
 
     <section class="pipeline-section">
       <div class="section-heading centered">

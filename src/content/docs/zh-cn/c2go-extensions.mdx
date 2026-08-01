@@ -1,0 +1,139 @@
+---
+title: C2Go 扩展速查
+description: 检索 C2Go 提供的 attribute、宏、builtin、pragma、selector 与 ABI 类型。
+locale: zh-cn
+section: reference
+order: 14
+release: v0.20260729.0-rc.5
+sourceLinks:
+  - label: C2Go 公开头文件
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/lib/Headers/c2go.h
+  - label: 默认函数 world 回归测试
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/test/CodeGen/c2go-func-world-default.c
+  - label: C2Go pragma parser
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/lib/Parse/ParsePragma.cpp#L2276-L2355
+---
+
+这些名称并不是同一种“新关键字”。`<c2go.h>` 提供宏和声明，Clang 则提供 attribute、builtin、pragma 与预定义宏。阅读诊断或编写可复用 header 时，必须先分清它们的类别。
+
+## 最小使用模式
+
+没有 active pragma region 时，默认 world 是 unmanaged。有定义的函数属于内部 C2Go 代码；只有声明、没有定义的函数默认是 native import，除非显式扩展另有指定。
+
+```c
+#include <c2go.h>
+
+#pragma c2go managed(6) push
+struct Node {
+    struct Node *next;
+    long value;
+};
+#pragma c2go pop
+
+c2go_extern long node_value(const struct Node *node) {
+    return node->value;
+}
+```
+
+`managed(6)` 选择 pointer 与 record bit；函数带有 `c2go_extern`，因此会导出给 Go。
+
+## World、导出与链接 attribute
+
+| 公开拼写                                   | 类别                                       | 作用对象                                              | 用途                                              | 主要限制                                                                    |
+| ------------------------------------------ | ------------------------------------------ | ----------------------------------------------------- | ------------------------------------------------- | --------------------------------------------------------------------------- |
+| `managed`                                  | `<c2go.h>` 宏 → `c2go_managed` attribute   | Record、field、pointer、parameter、variable、function | 显式进入 Go managed world。                       | Pointer layout 必须始终对 GC 可见。                                         |
+| `unmanaged`                                | `<c2go.h>` 宏 → `c2go_unmanaged` attribute | 同一组声明类别                                        | 保持 native C 表示或 ABI 边界。                   | Pointer 跨调用不代表 Go GC 自动取得所有权。                                 |
+| `c2go_extern`                              | 宏 → `c2go_extern` attribute               | C definition 及其先前 declaration                     | 通过生成的 Go package 导出 C symbol。             | 所有 redeclaration 必须一致；默认 Go 名称按下划线分段转 CamelCase。         |
+| `c2go_extern_as(selector)`                 | Attribute 宏                               | 导出的 definition                                     | 选择 Go identifier 的大小写规则。                 | 必须使用已记录的 selector 常量。                                            |
+| `c2go_linkname("pkg.Symbol")`              | 变参 attribute 宏                          | 函数 declaration                                      | 将 C declaration 绑定到具名 Go symbol。           | Declaration 必须与 Go ABI shape 匹配。                                      |
+| `c2go_linkname("pkg.Symbol", C2GO_GOABI0)` | 带 ABI selector 的 attribute 宏            | 函数 declaration                                      | 直接绑定到已经暴露 ABI0 的 symbol。               | ABIInternal-only Go 函数不能选择 ABI0。                                     |
+| `c2go_returntype(struct T)`                | Attribute 宏                               | 已 link/export 的函数                                 | 把完整 C struct 的字段解释成独立 Go result slot。 | 每个字段都必须是受支持的单 slot result，声明返回类型必须正好是 `struct T`。 |
+| `__attribute__((c2go_variant))`            | Clang attribute                            | Union declaration                                     | 请求 GC 可表示的 union layout。                   | 无法消歧的重叠 pointer layout 会被拒绝。                                    |
+
+按任务学习的示例见[将 C 导出给 Go](/zh-cn/docs/export-c/)和[从 C 调用 Go](/zh-cn/docs/call-go/)。
+
+## Managed 分配与类型信息
+
+| 公开拼写                                       | 类别                                    | 结果                                                          |
+| ---------------------------------------------- | --------------------------------------- | ------------------------------------------------------------- |
+| `gc_malloc(type_info, size)`                   | 声明的 runtime 函数                     | 使用给定 runtime type descriptor 分配清零的 Go heap storage。 |
+| `c2go_typeinfo(T)`                             | 宏 → `__c2go_typeinfo` compiler builtin | 取得 managed record type 对应的 `runtime._type` descriptor。  |
+| `gc_malloc_array(type_info, elem_size, count)` | Static inline helper                    | 使用 element descriptor 分配连续 managed array。              |
+
+应使用 `c2go_typeinfo(struct Node)`，不要手工构造 descriptor：
+
+```c
+struct Node *node = gc_malloc(
+    c2go_typeinfo(struct Node),
+    sizeof(struct Node)
+);
+```
+
+普通 `malloc`、`calloc`、`realloc`、`free` 仍是 unmanaged C allocator API。所有权规则见 [GC 感知分配](/zh-cn/docs/gc-allocation/)。
+
+## 函数指针跨界
+
+| 公开拼写            | 类别                  | 方向                                      | 用途                                                            |
+| ------------------- | --------------------- | ----------------------------------------- | --------------------------------------------------------------- |
+| `c2go_callback(fn)` | 宏 → compiler builtin | C2Go function → native callable pointer   | 把 C2Go 函数交给 comparator 等 native callback API。            |
+| `c2go_callout(fn)`  | 宏 → compiler builtin | Native import → internal callable pointer | 存储或传递某个 native import 的可调用指针；直接调用不需要它。   |
+| `C2GO_DYN(name)`    | Token-pasting 宏      | Native import 命名                        | 导入 host symbol，同时允许 package 自己定义/导出相同裸 C 名称。 |
+
+这些形式不能与 `&fn` 互换。Raw native address 与 C2Go callable wrapper 使用不同调用契约，详见[回调](/zh-cn/docs/callbacks/)。
+
+## Pragma region
+
+支持的形式是：
+
+```c
+#pragma c2go managed(6) push
+/* declarations */
+#pragma c2go pop
+
+#pragma c2go unmanaged push
+/* declarations */
+#pragma c2go pop
+```
+
+`managed(N)` parser 只读取一个数字 token，不会 macro-expand `C2GO_PTR | C2GO_RECORD`，因此必须写计算后的数字 literal。
+
+| Bit | Header 名称   | Region 内效果                                                     |
+| --- | ------------- | ----------------------------------------------------------------- |
+| `1` | `C2GO_FUNC`   | 只有声明的函数默认成为内部 C2Go reference，而不是 native import。 |
+| `2` | `C2GO_PTR`    | 未注解的 pointer-shaped declaration 默认变为 managed。            |
+| `4` | `C2GO_RECORD` | 完成定义的 record 参与 managed-record inference。                 |
+
+`managed(7)` 启用三个 bit，`managed(6)` 是常用的 record + pointer region，`unmanaged push` 等价于零 mask。Region 可以嵌套，每个 `pop` 只退出一层。
+
+## Selector 常量
+
+| 常量            | 值  | 用于             | 含义                                        |
+| --------------- | --- | ---------------- | ------------------------------------------- |
+| `C2GO_EXPORTED` | `1` | `c2go_extern_as` | 生成常规 exported CamelCase Go identifier。 |
+| `C2GO_KEEPCASE` | `0` | `c2go_extern_as` | Go 源码 identifier 保留 C 拼写。            |
+| `C2GO_GOABI0`   | `1` | `c2go_linkname`  | 目标 symbol 已经提供 ABI0 entry。           |
+
+`C2GO_FUNC`、`C2GO_PTR`、`C2GO_RECORD` 用来记录 pragma bit 的含义，但当前 parser 不允许把这些名称直接写进 `managed(...)`。
+
+## Go 边界类型
+
+| C 类型        | Go shape        | 已发布 64 位 target 上的布局         |
+| ------------- | --------------- | ------------------------------------ |
+| `c2go_slice`  | `[]T`           | data pointer、length、capacity       |
+| `c2go_string` | `string`        | data pointer、length                 |
+| `c2go_iface`  | interface value | table pointer、data pointer          |
+| `c2go_error`  | `error`         | 同样的双字 non-empty-interface shape |
+
+它们只是 ABI 表示，不是在 C 中实现 Go 语言操作。当前不能动态 dispatch interface method；应绑定具名 Go wrapper。详见[边界数据类型](/zh-cn/docs/data-types/)。
+
+## 预定义模式宏
+
+C2Go 模式下会定义 `__C2GO__` 与 `__clang_c2go__`。它们适合小范围兼容分支：
+
+```c
+#if defined(__C2GO__)
+#  include <c2go.h>
+#endif
+```
+
+不能通过 mode macro 推断 target 支持范围。发布矩阵和硬边界以[平台与当前限制](/zh-cn/docs/platforms-limitations/)为准。

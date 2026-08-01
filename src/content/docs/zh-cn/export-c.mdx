@@ -2,8 +2,8 @@
 title: 将 C 导出给 Go
 description: 把已定义的 C 函数和 managed record 暴露为生成的 Go API。
 locale: zh-cn
-section: concepts
-order: 8
+section: guides
+order: 5
 release: v0.20260729.0-rc.5
 sourceLinks:
   - label: 导出命名与公开宏
@@ -64,7 +64,7 @@ c2go_extern struct Point translate(
 
 manifest 会记录 size、字段 offset 和 pointer layout。`c2go-bind` 根据这些事实生成 Go 兼容类型，而不是从宿主编译器默认值猜测。
 
-Managed record 不能 packed，也不能覆盖单个字段的 alignment，因为 Go 契约中没有对应布局。
+Packed 或自定义 alignment 的 managed record 会产生 C2Go warning。当前 manifest/binder 能描述显式 padding，但最终公开布局与 target 相关，必须检查生成的 Go type。包含 GC 扫描 data pointer 的 unmanaged record 更严格：packing 或自定义 alignment 会被拒绝，因为 conservative scanner 无法找到发生偏移的 pointer word。
 
 ## Go 保留名称
 
@@ -74,4 +74,4 @@ Managed record 不能 packed，也不能覆盖单个字段的 alignment，因为
 
 除了表面可见的声明，生成文件还包括 ABI/版本 guard，并可能包含 runtime import、GC metadata 或 native-call glue。不要只复制看起来像公共 API 的 `.go` 文件；应完整保留整个生成目录及其授权记录。
 
-反向操作——声明并调用已有 Go 符号——见[从 C 调用 Go](/zh-cn/docs/call-go/)。
+下一章解释 [Managed 与 unmanaged](/zh-cn/docs/managed-unmanaged/) 声明如何让导出指针布局保持对 GC 可见。

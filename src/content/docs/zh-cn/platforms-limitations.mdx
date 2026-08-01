@@ -1,9 +1,9 @@
 ---
-title: 平台与限制
-description: 区分已发布宿主 SDK 与编译器 target，并理解 fail-closed 边界。
+title: 平台与当前限制
+description: 检查已发布平台矩阵、不支持的语言形状和 fail-closed ABI 边界。
 locale: zh-cn
-section: build
-order: 16
+section: support
+order: 17
 release: v0.20260729.0-rc.5
 sourceLinks:
   - label: Release 构建矩阵
@@ -12,7 +12,11 @@ sourceLinks:
     url: https://github.com/c2gohq/c2go_toolchain/blob/v0.20260729.0-rc.5/RELEASE_NOTES/v0.20260729.0-rc.5.zh-CN.md
 ---
 
+import SafetyNotice from "@/components/SafetyNotice.astro";
+
 编译器实现覆盖和已发布 SDK 覆盖是不同结论。选择受支持宿主包时，应以 release asset 列表为准。
+
+<SafetyNotice locale="zh-cn" />
 
 ## 已发布 SDK
 
@@ -48,10 +52,9 @@ sourceLinks:
 
 ## 语言硬限制
 
-- **C 栈指针不能逃逸到堆或全局状态。** C2Go 不会提升逃逸 local；发布前必须通过独立的 [`c2go-lto` 审计](/zh-cn/docs/stack-escape-audit/)。
 - 只支持 C 和 64 位；C++ 会被拒绝。
 - 拒绝 variable-length array 与动态 `alloca`，因为可移动 Go 栈使它们的基址不健全。
-- Managed record 不能 packed，也不能覆盖单字段 alignment。
+- Packed 或自定义 alignment 的 managed record 只产生 warning，生成布局与 target 相关；包含扫描 data pointer 的 unmanaged record 会直接拒绝这些布局。
 - `c2go_iface` 只提供 ABI 表示；当前没有动态调用 interface method 的 C 侧 API。应绑定具名 Go wrapper。
 - `c2go_variant` 不能表示有歧义的重叠 managed pointer。
 - `c2go_returntype` 的每个字段必须占据一个受支持 Go ABI result slot。

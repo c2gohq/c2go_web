@@ -60,25 +60,26 @@ C2Go 明确区分两个内存世界。当前实现的 translation unit 默认是
 | `c2go_callback` / `c2go_callout` | 在边界两侧传递可调用函数指针  |
 | `c2go_returntype`                | 用 C struct 描述 Go 多返回值  |
 
-## 当前范围
+每个扩展的完整拼写、类别和限制见 [C2Go 扩展速查](/zh-cn/docs/c2go-extensions/)。
 
-当前协同版本有意保持较窄的支持范围：
+## 当前版本基线
+
+当前协同版本的基线是：
 
 - 只支持 C，不支持 C++；
 - 只生成 64 位 `amd64` 与 `arm64` 代码；
 - 当前 SDK 对应 Go 1.25.x；
 - 每个 OS 与架构分别生成产物；
-- C 栈指针逃逸到堆或全局状态时不会自动提升；
 - 项目仍处于 pre-1.0，API 与 ABI 细节可能变化。
 
-发布页列出真正构建并测试过的宿主 SDK。不要仅因为某个后端能生成目标代码，就把它理解为已有正式发布包。
+发布页列出真正构建并测试过的宿主 SDK。迁移现有 C 库前，请阅读[平台与当前限制](/zh-cn/docs/platforms-limitations/)；语言、ABI、回调与打包边界以该页为准。
 
 ## 什么时候适合使用 C2Go
 
 当你希望复用或迁移 C 实现，同时向使用者暴露普通 Go package 时，C2Go 很有价值。对于需要 Go 管理内存、或希望比独立进程边界更深入地接入 Go runtime 的代码尤其如此。
 
-它目前还不能无差别替代所有 cgo 项目。C++、32 位目标、动态栈分配、packed managed record、stack-to-heap pointer escape，以及部分平台相关回调形状仍不在当前契约内。迁移带状态代码前，请先阅读并落实[栈指针逃逸门禁](/zh-cn/docs/stack-escape-audit/)。
+它目前还不能无差别替代所有 cgo 项目。不要因为上游 Clang 能接受某种写法，就默认它已经进入 C2Go 的发布契约；采用前应以链接的限制页为检查清单。
 
 ## 下一步
 
-安装匹配的 SDK 与 Go runtime module，然后在 [Hello World](/zh-cn/docs/hello-world/) 中编译第一个导出 C 函数。
+先[安装匹配的 SDK](/zh-cn/docs/installation/)与 Go runtime module，然后在 [Hello World](/zh-cn/docs/hello-world/) 中编译第一个导出 C 函数。

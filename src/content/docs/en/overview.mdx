@@ -60,25 +60,26 @@ The public extensions in `<c2go.h>` include:
 | `c2go_callback` / `c2go_callout` | Move callable function pointers across the boundary |
 | `c2go_returntype`                | Describe a Go multi-value result with a C struct    |
 
-## Current scope
+For the complete spelling, category, and constraints of each extension, use the [C2Go extensions reference](/en/docs/c2go-extensions/).
 
-The coordinated release is intentionally narrow:
+## Release baseline
+
+The current coordinated release is built around:
 
 - C only; C++ is not supported;
 - 64-bit `amd64` and `arm64` code generation;
 - Go 1.25.x for the current SDK release;
 - separate generated output for each OS and architecture; and
-- no automatic promotion when a C stack pointer escapes into heap or global storage; and
 - pre-1.0 APIs and ABI details that may still change.
 
-The release page lists the host SDK archives that are actually built and tested. Do not infer a supported release package merely because a backend can generate code for a target.
+The release page lists the host SDK archives that are actually built and tested. Before migrating an existing library, review [Platforms and current limitations](/en/docs/platforms-limitations/) for the canonical language, ABI, callback, and packaging boundaries.
 
 ## When to use C2Go
 
 C2Go is useful when you want to port or reuse C implementation code while presenting a normal Go package to its consumers. It is especially relevant when the code benefits from Go-managed allocation or needs tighter runtime integration than a conventional process boundary.
 
-It is not yet a drop-in replacement for every cgo project. C++ code, 32-bit targets, dynamic stack allocation, packed managed records, stack-to-heap pointer escape, and several platform-specific callback shapes remain outside the current contract. Read and enforce the [stack escape safety gate](/en/docs/stack-escape-audit/) before porting stateful code.
+It is not yet a drop-in replacement for every cgo project. Use the linked limitations page as the adoption checklist instead of assuming that every construct accepted by upstream Clang is part of the C2Go release contract.
 
 ## Next step
 
-Install the matching SDK and Go runtime module, then compile one exported C function in [Hello World](/en/docs/hello-world/).
+[Install the matching SDK](/en/docs/installation/) and Go runtime module, then compile one exported C function in [Hello World](/en/docs/hello-world/).

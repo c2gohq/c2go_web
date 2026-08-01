@@ -1,12 +1,12 @@
 ---
-title: Data types and errno
-description: Use Go-compatible aggregate layouts, variants, and per-goroutine errno.
+title: Boundary data types
+description: Use Go-compatible aggregate layouts, multi-value results, and GC-safe variants.
 locale: en
 section: interop
 order: 12
 release: v0.20260729.0-rc.5
 sourceLinks:
-  - label: Built-in types and errno contract
+  - label: Built-in boundary type contract
     url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/lib/Headers/c2go.h#L239-L285
   - label: Variant representation test
     url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/test/CodeGen/c2go-variant-manifest.c
@@ -57,23 +57,4 @@ union __attribute__((c2go_variant)) Number {
 
 The attribute applies only to unions. Overlapping pointer members that cannot be distinguished safely are rejected; it is not a license for arbitrary pointer punning.
 
-## errno belongs to a goroutine
-
-After including `<c2go.h>`, ordinary `errno` syntax works:
-
-```c
-#include <c2go.h>
-#include <errno.h>
-
-int parse_positive(int value) {
-    if (value < 0) {
-        errno = EINVAL;
-        return -1;
-    }
-    return value;
-}
-```
-
-C2Go resolves it through the standard `__errno_location()` accessor, which is linked to `c2go_libc.ErrnoPtr`. This gives each goroutine its own logical errno state rather than sharing a single process-global integer.
-
-For project-scale output, continue with [multi-file projects and LTO](/en/docs/multi-file-lto/).
+For a searchable view of ordinary C syntax and C2Go-specific spellings, continue with the [C language quick reference](/en/docs/c-language-reference/).

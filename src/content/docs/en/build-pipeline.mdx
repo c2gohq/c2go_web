@@ -2,8 +2,8 @@
 title: The build pipeline
 description: Follow C source through Clang, C2Go LTO, binding generation, and the Go toolchain.
 locale: en
-section: concepts
-order: 5
+section: start
+order: 4
 release: v0.20260729.0-rc.5
 sourceLinks:
   - label: Driver pipeline regression test
@@ -69,4 +69,4 @@ There is no C compiler involved at application startup.
 
 If a build fails, preserve the `.s` and `.json` pair. Check the manifest target and ABI version before debugging generated Go. Use `c2go-bind --dry-run` to inspect Go output without changing an output directory, and `c2go-lto --c2go-print-stats` when diagnosing the compiler pipeline directly.
 
-Next, learn the [managed and unmanaged](/en/docs/managed-unmanaged/) model that governs pointers across the pipeline.
+Next, [export a C API to Go](/en/docs/export-c/) before introducing managed memory.

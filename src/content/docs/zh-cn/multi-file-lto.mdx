@@ -2,8 +2,8 @@
 title: 多文件项目
 description: 编译多个 translation unit，使用 C2Go LTO，并安全绑定 archive。
 locale: zh-cn
-section: build
-order: 13
+section: guides
+order: 8
 release: v0.20260729.0-rc.5
 sourceLinks:
   - label: c2go-clang 多文件 driver 测试
@@ -79,4 +79,4 @@ binder 会精确去重，并拒绝符号、类型、全局变量、linkname、GC
 
 把每个 `.s` 与其 manifest 视为不可拆分的一对。cache key 必须包含 target triple、package path、优化级别和协同工具链版本。不要在未经过 `c2go-bind` 生成目标选择结构的情况下，把不同 OS 产物塞进同一个 package。
 
-需要直接使用 CPU 指令的底层代码，请继续阅读[内联汇编](/zh-cn/docs/inline-assembly/)。
+项目构建协调完成后，继续学习[从 C 调用 Go](/zh-cn/docs/call-go/)。

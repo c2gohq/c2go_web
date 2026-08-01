@@ -1,0 +1,91 @@
+---
+title: C language quick reference
+description: Look up C keywords, syntax, preprocessing, and the constructs that change meaning under C2Go.
+locale: en
+section: reference
+order: 13
+release: v0.20260729.0-rc.5
+sourceLinks:
+  - label: C2Go language-mode definition
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/include/clang/Basic/LangStandards.def#L113-L121
+  - label: C2Go language defaults
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/lib/Frontend/CompilerInvocation.cpp#L1806-L1833
+  - label: Variable-length array rejection
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/lib/Sema/SemaChecking.cpp#L2840-L2860
+---
+
+Use this page when reviewing an existing C source tree. C2Go keeps Clang's C parser, preprocessor, and most ordinary expression semantics, then adds rules for Go stacks, GC-visible memory, and cross-runtime calls. A construct being accepted by upstream Clang does not by itself make every ABI use of that construct supported by C2Go.
+
+## Language mode
+
+The current SDK uses C17 when `-fc2go` is passed without an explicit `-std`; `__STDC_VERSION__` is `201710L`. Keep a project's intended dialect explicit when reproducibility matters:
+
+```sh
+c2go-clang --target=aarch64-apple-darwin -fc2go -std=c17 ...
+c2go-clang --target=aarch64-apple-darwin -fc2go -std=gnu17 ...
+```
+
+`-std=c2go23` selects Clang's C23 language baseline together with GNU and C2Go extensions; `-std=c2go` is an alias. It does not remove the runtime and ABI restrictions on this page.
+
+## C17 keyword lookup
+
+“Ordinary” means the keyword keeps its normal C source meaning. Target-specific arithmetic and ABI rules still apply.
+
+| Keywords                                                                                               | Status in C2Go       | Important boundary                                                                                                                                                           |
+| ------------------------------------------------------------------------------------------------------ | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `break`, `case`, `continue`, `default`, `do`, `else`, `for`, `goto`, `if`, `return`, `switch`, `while` | Ordinary             | `switch` works; C2Go disables jump-table emission internally and lowers it through safe branches.                                                                            |
+| `auto`, `register`, `static`, `typedef`                                                                | Ordinary             | Storage duration still determines whether an address can outlive a stack frame.                                                                                              |
+| `extern`                                                                                               | C2Go rule            | A declaration-only function is a native import by default. A definition is internal C2Go code. Use explicit C2Go extensions for Go symbols and deliberate native boundaries. |
+| `_Bool`, `char`, `short`, `int`, `long`, `signed`, `unsigned`, `float`, `double`, `void`, `enum`       | Ordinary             | Public boundary width follows the target ABI. Prefer fixed-width integer types when one Go API must work across Unix and Windows.                                            |
+| `struct`, `union`                                                                                      | C2Go rule            | Plain records are unmanaged. Managed records and pointer-bearing unions must satisfy the GC layout rules.                                                                    |
+| `const`, `restrict`, `volatile`                                                                        | Ordinary             | `volatile` does not provide atomicity or make a native pointer GC-visible.                                                                                                   |
+| `inline`                                                                                               | Ordinary             | It is an optimization/linkage rule, not C2Go's inline-assembly feature.                                                                                                      |
+| `sizeof`, `_Alignof`, `_Generic`, `_Static_assert`                                                     | Ordinary             | Compile-time expressions keep Clang semantics.                                                                                                                               |
+| `_Alignas`                                                                                             | Restricted by layout | Ordinary objects are supported. Records containing GC-scanned pointers have additional packing/alignment checks.                                                             |
+| `_Atomic`                                                                                              | Target-sensitive     | Atomic syntax and ordinary supported widths compile, but verify every operation on every release target; a synthesized unsupported runtime libcall fails closed.             |
+| `_Complex`                                                                                             | Boundary-sensitive   | Internal arithmetic is accepted. Complex values are not valid single-slot fields for `c2go_returntype`, and native boundary shapes require target validation.                |
+| `_Thread_local`                                                                                        | C2Go semantics       | Storage is resolved per goroutine through the C2Go runtime, not through native ELF/Mach-O TLS. This does not imply support for the C threads library.                        |
+| `_Noreturn`                                                                                            | Ordinary             | The declaration must still match the actual control flow.                                                                                                                    |
+| `_Imaginary`                                                                                           | Unsupported          | Clang rejects imaginary types.                                                                                                                                               |
+
+In `-std=c2go23`, Clang also recognizes C23 spellings such as `alignas`, `alignof`, `bool`, `constexpr`, `false`, `nullptr`, `static_assert`, `thread_local`, `true`, `typeof`, and `typeof_unqual`, plus types such as `_BitInt(N)`. Treat a successful parse as the first gate; boundary layout and target code generation remain separate gates.
+
+## Operators and conversions
+
+Arithmetic, comparison, logical, bitwise, assignment, member access, subscripting, the conditional operator, and the comma operator use Clang's C rules. These operations gain extra diagnostics when pointers cross memory worlds:
+
+| Operation                                 | C2Go rule                                                                                        |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Taking `&local`                           | Valid while the pointer stays within the frame; it must not be retained by heap or global state. |
+| Managed pointer to integer                | Accepted with a warning because the integer hides the pointer from precise tracking.             |
+| Managed to unmanaged pointer              | Warned or rejected according to where GC visibility would be lost.                               |
+| Cast between managed record pointer types | Rejected when their pointer layouts are incompatible.                                            |
+| Function call                             | The declaration determines an internal C2Go call, Go-symbol call, or native ABI call.            |
+| Function pointer                          | Internal, callback, callout, and raw native pointers are distinct boundary shapes.               |
+
+See [Managed and unmanaged](/en/docs/managed-unmanaged/) for the memory rules and [Callbacks](/en/docs/callbacks/) for function-pointer crossings.
+
+## Preprocessor and pragmas
+
+Normal directives—including `#include`, `#define`, conditional compilation, `#error`, and `_Pragma`—use Clang's preprocessor. The current mode defines:
+
+| Macro                 | Meaning                                           |
+| --------------------- | ------------------------------------------------- |
+| `__C2GO__`            | Source is being compiled in C2Go mode.            |
+| `__clang_c2go__`      | The compiler is the C2Go Clang fork in C2Go mode. |
+| `__STDC_NO_VLA__`     | Variable-length arrays are unavailable.           |
+| `__STDC_NO_THREADS__` | The ISO C threads library is not advertised.      |
+| `__STDC_VERSION__`    | Reflects the selected C dialect.                  |
+
+`#pragma c2go ...` is the project-specific pragma family. Its exact forms and bit masks are listed in [C2Go extensions](/en/docs/c2go-extensions/).
+
+## Unsupported or separately constrained constructs
+
+- Variable-length arrays and dynamic `alloca` are rejected because C2Go functions require fixed-size frames on movable goroutine stacks.
+- C++ is not supported.
+- `_Imaginary` is not supported by Clang.
+- Inline assembly is limited to call-free, supported instructions and constraints; see [Inline assembly](/en/docs/inline-assembly/).
+- GNU or Clang syntax accepted by `-std=gnu17` is not a blanket compatibility promise. Compile and test extension-heavy code on every release target.
+- Header and function availability is a `c2go-libc` question, separate from whether the C language syntax parses.
+
+The canonical release blockers are collected in [Platforms and current limitations](/en/docs/platforms-limitations/).

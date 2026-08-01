@@ -2,7 +2,7 @@
 title: Managed 与 unmanaged
 description: 理解 C2Go 用来保持 Go GC 健全的两个内存世界。
 locale: zh-cn
-section: concepts
+section: guides
 order: 6
 release: v0.20260729.0-rc.5
 sourceLinks:
@@ -93,10 +93,12 @@ extern int native_open(struct NativeHeader *);
 
 - 在 GC 布局不兼容的 managed 指针类型之间 bit-cast；
 - 在 unmanaged record 中放入 managed 字段；
-- 对 managed record 使用 packed 或逐字段 alignment 覆盖；
+- 对包含 GC 扫描 data pointer 的 unmanaged record 使用 packing 或自定义 alignment；
 - 在 managed union 表示中使用无法消歧的重叠指针字段。
 
-不要用整数转换绕过错误。应重新设计边界：让原生存储保持 unmanaged，或者明确地把数据复制到有清晰生命周期的 managed 表示。
+Packed 或自定义 alignment 的 managed record 会产生 warning，而不是上述 hard error。它们生成的 Go 布局与 target 相关；作为公开类型前必须检查生成结果并测试每个 target。
+
+不要用整数转换绕过 hard layout error。应重新设计边界：让原生存储保持 unmanaged，或者明确地把数据复制到有清晰生命周期的 managed 表示。
 
 ## 边界选择原则
 

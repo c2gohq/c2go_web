@@ -8,7 +8,7 @@ const docs = defineCollection({
     title: z.string(),
     description: z.string(),
     locale: z.enum(["en", "zh-cn"]),
-    section: z.enum(["start", "concepts", "interop", "build"]),
+    section: z.enum(["start", "guides", "interop", "reference", "support"]),
     order: z.number().int().positive(),
     release: z.string(),
     sourceLinks: z

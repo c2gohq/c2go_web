@@ -1,0 +1,139 @@
+---
+title: C2Go extensions reference
+description: Search the attributes, macros, built-ins, pragmas, selectors, and ABI types exposed by C2Go.
+locale: en
+section: reference
+order: 14
+release: v0.20260729.0-rc.5
+sourceLinks:
+  - label: Public C2Go header
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/lib/Headers/c2go.h
+  - label: Default function-world regression test
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/test/CodeGen/c2go-func-world-default.c
+  - label: C2Go pragma parser
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/lib/Parse/ParsePragma.cpp#L2276-L2355
+---
+
+These names are not one new class of C keyword. `<c2go.h>` exposes macros and declarations, while Clang supplies attributes, built-ins, pragmas, and predefined macros. The category matters when reading diagnostics or writing a reusable header.
+
+## Minimal pattern
+
+Outside an active pragma region, the default world is unmanaged. Defined functions are internal C2Go code; a declaration-only function is a native import unless an explicit extension says otherwise.
+
+```c
+#include <c2go.h>
+
+#pragma c2go managed(6) push
+struct Node {
+    struct Node *next;
+    long value;
+};
+#pragma c2go pop
+
+c2go_extern long node_value(const struct Node *node) {
+    return node->value;
+}
+```
+
+`managed(6)` selects the pointer and record bits. The declaration is exported to Go because the function is marked `c2go_extern`.
+
+## World, export, and link attributes
+
+| Public spelling                            | Category                                      | Applies to                                                  | Purpose                                                              | Main constraint                                                                                         |
+| ------------------------------------------ | --------------------------------------------- | ----------------------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `managed`                                  | `<c2go.h>` macro → `c2go_managed` attribute   | Records, fields, pointers, parameters, variables, functions | Opt into the Go-managed world.                                       | Pointer layouts must remain visible to the GC.                                                          |
+| `unmanaged`                                | `<c2go.h>` macro → `c2go_unmanaged` attribute | The same declaration families                               | Keep a native C representation or ABI boundary.                      | The Go GC does not gain ownership merely because the pointer crosses a call.                            |
+| `c2go_extern`                              | Macro → `c2go_extern` attribute               | A C definition and its prior declarations                   | Export the C symbol through the generated Go package.                | Redeclarations must agree; the default Go name uses underscore-to-CamelCase conversion.                 |
+| `c2go_extern_as(selector)`                 | Attribute macro                               | Exported definition                                         | Choose exported Go identifier casing.                                | Use one of the documented selector constants.                                                           |
+| `c2go_linkname("pkg.Symbol")`              | Variadic attribute macro                      | Function declaration                                        | Bind a C declaration to a named Go symbol.                           | Declaration and Go ABI shape must match.                                                                |
+| `c2go_linkname("pkg.Symbol", C2GO_GOABI0)` | Attribute macro with ABI selector             | Function declaration                                        | Bind directly to a symbol that already exposes ABI0.                 | Do not select ABI0 for an ABIInternal-only Go function.                                                 |
+| `c2go_returntype(struct T)`                | Attribute macro                               | Linked or exported function                                 | Treat the fields of a complete C struct as separate Go result slots. | Each field must be a supported one-slot result and the declared return type must be exactly `struct T`. |
+| `__attribute__((c2go_variant))`            | Clang attribute                               | Union declaration                                           | Request a GC-representable union layout.                             | Ambiguous overlapping pointer layouts are rejected.                                                     |
+
+For task-oriented examples, see [Export C to Go](/en/docs/export-c/) and [Call Go from C](/en/docs/call-go/).
+
+## Managed allocation and type information
+
+| Public spelling                                | Category                                    | Result                                                                      |
+| ---------------------------------------------- | ------------------------------------------- | --------------------------------------------------------------------------- |
+| `gc_malloc(type_info, size)`                   | Declared runtime function                   | Allocates zeroed Go-heap storage with the supplied runtime type descriptor. |
+| `c2go_typeinfo(T)`                             | Macro → `__c2go_typeinfo` compiler built-in | Produces the `runtime._type` descriptor for a managed record type.          |
+| `gc_malloc_array(type_info, elem_size, count)` | Static inline helper                        | Allocates a contiguous managed array using the element descriptor.          |
+
+Use `c2go_typeinfo(struct Node)` rather than constructing a descriptor manually:
+
+```c
+struct Node *node = gc_malloc(
+    c2go_typeinfo(struct Node),
+    sizeof(struct Node)
+);
+```
+
+Plain `malloc`, `calloc`, `realloc`, and `free` remain the unmanaged C allocator API. See [GC-aware allocation](/en/docs/gc-allocation/) for ownership rules.
+
+## Function-pointer crossings
+
+| Public spelling     | Category                  | Direction                                 | Use                                                                                              |
+| ------------------- | ------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `c2go_callback(fn)` | Macro → compiler built-in | C2Go function → native callable pointer   | Pass a C2Go function to a native API such as a comparator callback.                              |
+| `c2go_callout(fn)`  | Macro → compiler built-in | Native import → internal callable pointer | Store or pass a callable pointer to an imported native function. A direct call does not need it. |
+| `C2GO_DYN(name)`    | Token-pasting macro       | Native import naming                      | Import a host symbol while also defining/exporting the same bare C name in the package.          |
+
+These forms are not interchangeable with `&fn`. The raw native address and the callable C2Go wrapper have different calling contracts. See [Callbacks](/en/docs/callbacks/).
+
+## Pragma regions
+
+Supported forms are:
+
+```c
+#pragma c2go managed(6) push
+/* declarations */
+#pragma c2go pop
+
+#pragma c2go unmanaged push
+/* declarations */
+#pragma c2go pop
+```
+
+The `managed(N)` parser expects one numeric token. It does not macro-expand `C2GO_PTR | C2GO_RECORD`, so write the computed literal.
+
+| Bit | Header name   | Effect inside the region                                                                  |
+| --- | ------------- | ----------------------------------------------------------------------------------------- |
+| `1` | `C2GO_FUNC`   | Declaration-only functions default to internal C2Go references instead of native imports. |
+| `2` | `C2GO_PTR`    | Unannotated pointer-shaped declarations default to managed.                               |
+| `4` | `C2GO_RECORD` | Completed records participate in managed-record inference.                                |
+
+`managed(7)` enables all three bits; `managed(6)` is the usual record-and-pointer region; `unmanaged push` is equivalent to a zero mask. Regions nest, and each `pop` unwinds one level.
+
+## Selector constants
+
+| Constant        | Value | Used by          | Meaning                                               |
+| --------------- | ----- | ---------------- | ----------------------------------------------------- |
+| `C2GO_EXPORTED` | `1`   | `c2go_extern_as` | Generate the normal exported CamelCase Go identifier. |
+| `C2GO_KEEPCASE` | `0`   | `c2go_extern_as` | Keep the C spelling as the Go source identifier.      |
+| `C2GO_GOABI0`   | `1`   | `c2go_linkname`  | The target symbol already provides an ABI0 entry.     |
+
+The `C2GO_FUNC`, `C2GO_PTR`, and `C2GO_RECORD` names document pragma bits but cannot be written inside `managed(...)` in the current parser.
+
+## Go boundary types
+
+| C type        | Go shape        | Layout on released 64-bit targets           |
+| ------------- | --------------- | ------------------------------------------- |
+| `c2go_slice`  | `[]T`           | data pointer, length, capacity              |
+| `c2go_string` | `string`        | data pointer, length                        |
+| `c2go_iface`  | interface value | table pointer, data pointer                 |
+| `c2go_error`  | `error`         | the same two-word non-empty-interface shape |
+
+These are ABI representations, not an implementation of Go language operations in C. Dynamic interface dispatch is not available; bind a named Go wrapper. See [Boundary data types](/en/docs/data-types/).
+
+## Predefined mode macros
+
+`__C2GO__` and `__clang_c2go__` are defined while compiling in C2Go mode. Use them only for small compatibility branches:
+
+```c
+#if defined(__C2GO__)
+#  include <c2go.h>
+#endif
+```
+
+Do not infer target support from a mode macro. The release matrix and hard boundaries live in [Platforms and current limitations](/en/docs/platforms-limitations/).

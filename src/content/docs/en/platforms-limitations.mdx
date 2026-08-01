@@ -1,9 +1,9 @@
 ---
-title: Platforms and limits
-description: Distinguish released host SDKs from compiler targets and understand fail-closed boundaries.
+title: Platforms and current limitations
+description: Check the released platform matrix, unsupported language shapes, and fail-closed ABI boundaries.
 locale: en
-section: build
-order: 16
+section: support
+order: 17
 release: v0.20260729.0-rc.5
 sourceLinks:
   - label: Release build matrix
@@ -12,7 +12,11 @@ sourceLinks:
     url: https://github.com/c2gohq/c2go_toolchain/blob/v0.20260729.0-rc.5/RELEASE_NOTES/v0.20260729.0-rc.5.md
 ---
 
+import SafetyNotice from "@/components/SafetyNotice.astro";
+
 Compiler implementation coverage and published SDK coverage are different claims. Use the release asset list when selecting a supported host package.
+
+<SafetyNotice locale="en" />
 
 ## Published SDK archives
 
@@ -48,10 +52,9 @@ The compiler also contains a Darwin amd64 code-generation path. Windows arm64 is
 
 ## Hard language limits
 
-- **C stack pointers cannot escape into heap or global state.** C2Go does not promote escaping locals; require the standalone [`c2go-lto` audit](/en/docs/stack-escape-audit/) before release.
 - C only and 64-bit only; C++ is rejected.
 - Variable-length arrays and dynamic `alloca` are rejected because movable Go stacks make their bases unsound.
-- Managed records cannot be packed or override individual field alignment.
+- Packed or custom-aligned managed records are warning-only and produce target-specific generated layouts; unmanaged records containing scanned data pointers reject those layouts outright.
 - `c2go_iface` is an ABI representation only; there is currently no C-side API for dynamic interface-method calls. Bind a named Go wrapper instead.
 - `c2go_variant` cannot represent ambiguous overlapping managed pointers.
 - `c2go_returntype` fields must each occupy one supported Go ABI result slot.

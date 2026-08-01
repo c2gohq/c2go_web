@@ -1,7 +1,6 @@
 ---
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import Icon from "@/components/Icon.astro";
-import SafetyNotice from "@/components/SafetyNotice.astro";
 import { assetUrl, release } from "@/data/release";
 import type { Locale } from "@/data/navigation";
 
@@ -35,7 +34,6 @@ const cn = locale === "zh-cn";
         ><span>ABI epoch {release.abiEpoch}</span>
       </div>
     </header>
-    <SafetyNotice locale={locale} />
     <section class="download-section" aria-labelledby="download-heading">
       <h2 id="download-heading">
         {cn ? "选择宿主平台" : "Choose your host platform"}

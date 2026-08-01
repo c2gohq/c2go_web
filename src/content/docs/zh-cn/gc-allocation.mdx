@@ -2,7 +2,7 @@
 title: GC 感知分配
 description: 在 Go heap 上分配带类型的 C 对象，并保留准确的指针布局。
 locale: zh-cn
-section: concepts
+section: guides
 order: 7
 release: v0.20260729.0-rc.5
 sourceLinks:
@@ -84,6 +84,6 @@ unsigned char *bytes = gc_malloc(NULL, byte_count);
 
 ## 类型信息限制
 
-`c2go_typeinfo` 要求具名且完整的 record 类型。匿名 record 和保留的 runtime 标识符会被拒绝。Managed record 使用与 Go 兼容的布局规则，因此不能使用 packed layout 或逐字段 alignment 覆盖。
+`c2go_typeinfo` 要求具名且完整的 record 类型。匿名 record 和保留的 runtime 标识符会被拒绝。Packed 或自定义 alignment 的 managed record 会产生 warning，生成布局也与 target 相关；可移植的公开类型应优先使用自然布局。
 
-下一章在[将 C 导出给 Go](/zh-cn/docs/export-c/)中把 C2Go 函数与 managed record 变成 Go API。
+下一章把相同规则扩展到[多文件项目与 LTO](/zh-cn/docs/multi-file-lto/)。
