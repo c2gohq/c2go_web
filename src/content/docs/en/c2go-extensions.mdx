@@ -4,14 +4,14 @@ description: Search the attributes, macros, built-ins, pragmas, selectors, and A
 locale: en
 section: reference
 order: 15
-release: v0.20260801.0-rc.1
+release: v0.20260801.0-rc.2
 sourceLinks:
   - label: Public C2Go header
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.1/clang/lib/Headers/c2go.h
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.2/clang/lib/Headers/c2go.h
   - label: Default function-world regression test
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.1/clang/test/CodeGen/c2go-func-world-default.c
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.2/clang/test/CodeGen/c2go-func-world-default.c
   - label: C2Go pragma parser
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.1/clang/lib/Parse/ParsePragma.cpp#L2276-L2355
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.2/clang/lib/Parse/ParsePragma.cpp#L2276-L2402
 ---
 
 These names are not one new class of C keyword. `<c2go.h>` exposes macros and declarations, while Clang supplies attributes, built-ins, pragmas, and predefined macros. The category matters when reading diagnostics or writing a reusable header.
@@ -23,7 +23,7 @@ Outside an active pragma region, the default world is unmanaged. Defined functio
 ```c
 #include <c2go.h>
 
-#pragma c2go managed(6) push
+#pragma c2go managed push
 struct Node {
     struct Node *next;
     long value;
@@ -35,7 +35,7 @@ c2go_extern long node_value(const struct Node *node) {
 }
 ```
 
-`managed(6)` selects the pointer and record bits. The declaration is exported to Go because the function is marked `c2go_extern`.
+Bare `managed` enables the function, pointer, and record managed defaults and is appropriate for most managed regions. The declaration is exported to Go because the function is marked `c2go_extern`.
 
 ## World, export, and link attributes
 
@@ -88,7 +88,11 @@ These forms are not interchangeable with `&fn`. The raw native address and the c
 Supported forms are:
 
 ```c
-#pragma c2go managed(C2GO_PTR | C2GO_RECORD) push
+#pragma c2go managed push  /* Recommended: enable every managed default */
+/* declarations */
+#pragma c2go pop
+
+#pragma c2go managed(C2GO_PTR | C2GO_RECORD) push  /* Use only for selective control */
 /* declarations */
 #pragma c2go pop
 
@@ -97,7 +101,7 @@ Supported forms are:
 #pragma c2go pop
 ```
 
-`managed(N)` accepts integers or macros combined with parentheses and bitwise OR (`|`). Macros are expanded before the mask is evaluated, and the final value must be in the range `0..7`. Other expression operators such as `+` and `-` are intentionally unsupported.
+Bare `managed` enables `C2GO_FUNC | C2GO_PTR | C2GO_RECORD` and is the default choice for ordinary use. Use `managed(N)` only when one of those behaviors must be disabled. It accepts integers or macros combined with parentheses and bitwise OR (`|`). Macros are expanded before the mask is evaluated, and the final value must be in the range `0..7`. Other expression operators such as `+` and `-` are intentionally unsupported.
 
 | Bit | Header name   | Effect inside the region                                                                  |
 | --- | ------------- | ----------------------------------------------------------------------------------------- |
@@ -105,7 +109,7 @@ Supported forms are:
 | `2` | `C2GO_PTR`    | Unannotated pointer-shaped declarations default to managed.                               |
 | `4` | `C2GO_RECORD` | Completed records participate in managed-record inference.                                |
 
-`managed(7)` or `managed(C2GO_FUNC | C2GO_PTR | C2GO_RECORD)` enables all three bits. `managed(6)` is equivalent to the usual `managed(C2GO_PTR | C2GO_RECORD)`. `unmanaged push` is equivalent to a zero mask. Regions nest, and each `pop` unwinds one level.
+For example, `managed(C2GO_PTR | C2GO_RECORD)` leaves the function bit disabled, so declaration-only functions in that region remain native imports. `unmanaged push` is equivalent to a zero mask. Regions nest, and each `pop` unwinds one level.
 
 ## Selector constants
 

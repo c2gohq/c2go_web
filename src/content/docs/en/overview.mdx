@@ -4,14 +4,14 @@ description: What C2Go produces, where it runs, and when it is a good fit.
 locale: en
 section: start
 order: 1
-release: v0.20260801.0-rc.1
+release: v0.20260801.0-rc.2
 sourceLinks:
   - label: Public C2Go header
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.1/clang/lib/Headers/c2go.h
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.2/clang/lib/Headers/c2go.h
   - label: Driver pipeline regression test
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.1/clang/test/Driver/c2go-multifile.c
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.2/clang/test/Driver/c2go-multifile.c
   - label: Toolchain release
-    url: https://github.com/c2gohq/c2go_toolchain/releases/tag/v0.20260801.0-rc.1
+    url: https://github.com/c2gohq/c2go_toolchain/releases/tag/v0.20260801.0-rc.2
 ---
 
 C2Go is a Clang mode that compiles **C source into artifacts the Go toolchain can build as a Go package**. The resulting code runs under the Go runtime: it uses goroutine stacks and scheduling, can allocate objects visible to the Go garbage collector, and can call across the C/Go boundary.
@@ -44,7 +44,7 @@ Go toolchain + c2go-libc
 
 ## What is different from ordinary C
 
-C2Go adds an explicit distinction between two memory worlds. In the current implementation, the translation-unit default is **unmanaged**; managed behavior is opt-in through record/pointer attributes or `#pragma c2go managed(N) push` regions:
+C2Go adds an explicit distinction between two memory worlds. In the current implementation, the translation-unit default is **unmanaged**. Normally, use a bare `#pragma c2go managed push` region to enable every managed default, or apply record/pointer attributes for local annotations:
 
 - **managed** values participate in the Go runtime's memory model and carry precise GC metadata;
 - **unmanaged** values represent native C memory and external C ABI boundaries.

@@ -4,14 +4,14 @@ description: 检索 C2Go 提供的 attribute、宏、builtin、pragma、selector
 locale: zh-cn
 section: reference
 order: 15
-release: v0.20260801.0-rc.1
+release: v0.20260801.0-rc.2
 sourceLinks:
   - label: C2Go 公开头文件
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.1/clang/lib/Headers/c2go.h
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.2/clang/lib/Headers/c2go.h
   - label: 默认函数 world 回归测试
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.1/clang/test/CodeGen/c2go-func-world-default.c
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.2/clang/test/CodeGen/c2go-func-world-default.c
   - label: C2Go pragma parser
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.1/clang/lib/Parse/ParsePragma.cpp#L2276-L2355
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.2/clang/lib/Parse/ParsePragma.cpp#L2276-L2402
 ---
 
 这些名称并不是同一种“新关键字”。`<c2go.h>` 提供宏和声明，Clang 则提供 attribute、builtin、pragma 与预定义宏。阅读诊断或编写可复用 header 时，必须先分清它们的类别。
@@ -23,7 +23,7 @@ sourceLinks:
 ```c
 #include <c2go.h>
 
-#pragma c2go managed(6) push
+#pragma c2go managed push
 struct Node {
     struct Node *next;
     long value;
@@ -35,7 +35,7 @@ c2go_extern long node_value(const struct Node *node) {
 }
 ```
 
-`managed(6)` 选择 pointer 与 record bit；函数带有 `c2go_extern`，因此会导出给 Go。
+无参数 `managed` 会启用 function、pointer 与 record 三个 managed 默认项，适合大多数 managed region。函数带有 `c2go_extern`，因此会导出给 Go。
 
 ## World、导出与链接 attribute
 
@@ -88,7 +88,11 @@ struct Node *node = gc_malloc(
 支持的形式是：
 
 ```c
-#pragma c2go managed(C2GO_PTR | C2GO_RECORD) push
+#pragma c2go managed push  /* 推荐：启用全部 managed 默认项 */
+/* declarations */
+#pragma c2go pop
+
+#pragma c2go managed(C2GO_PTR | C2GO_RECORD) push  /* 仅在需要精细控制时使用 */
 /* declarations */
 #pragma c2go pop
 
@@ -97,7 +101,7 @@ struct Node *node = gc_malloc(
 #pragma c2go pop
 ```
 
-`managed(N)` 接受整数或宏，并允许使用括号和按位 OR（`|`）组合。宏会先展开，再计算掩码；最终值必须在 `0..7` 范围内。这里有意不接受 `+`、`-` 等其他表达式运算符。
+无参数 `managed` 等价于启用 `C2GO_FUNC | C2GO_PTR | C2GO_RECORD`，是一般场景的默认选择。只有需要关闭其中某项行为时才使用 `managed(N)`；它接受整数或宏，并允许使用括号和按位 OR（`|`）组合。宏会先展开，再计算掩码；最终值必须在 `0..7` 范围内。这里有意不接受 `+`、`-` 等其他表达式运算符。
 
 | Bit | Header 名称   | Region 内效果                                                     |
 | --- | ------------- | ----------------------------------------------------------------- |
@@ -105,7 +109,7 @@ struct Node *node = gc_malloc(
 | `2` | `C2GO_PTR`    | 未注解的 pointer-shaped declaration 默认变为 managed。            |
 | `4` | `C2GO_RECORD` | 完成定义的 record 参与 managed-record inference。                 |
 
-`managed(7)` 或 `managed(C2GO_FUNC | C2GO_PTR | C2GO_RECORD)` 会启用三个 bit；`managed(6)` 等价于常用的 `managed(C2GO_PTR | C2GO_RECORD)`。`unmanaged push` 等价于零 mask。Region 可以嵌套，每个 `pop` 只退出一层。
+例如，`managed(C2GO_PTR | C2GO_RECORD)` 不启用 function bit，因此区域内只有声明的函数仍按 native import 处理。`unmanaged push` 等价于零 mask。Region 可以嵌套，每个 `pop` 只退出一层。
 
 ## Selector 常量
 

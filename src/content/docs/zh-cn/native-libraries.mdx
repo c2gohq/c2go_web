@@ -4,14 +4,14 @@ description: 导入宿主 C ABI 符号，同时明确保持 managed 边界。
 locale: zh-cn
 section: interop
 order: 11
-release: v0.20260801.0-rc.1
+release: v0.20260801.0-rc.2
 sourceLinks:
   - label: Unmanaged import manifest 测试
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.1/clang/test/CodeGen/c2go-unmanaged-extern-manifest.c
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.2/clang/test/CodeGen/c2go-unmanaged-extern-manifest.c
   - label: c2go-bind 链接选项
-    url: https://github.com/c2gohq/c2go_bind/blob/v0.20260801.0-rc.1/README.zh-CN.md#用法
+    url: https://github.com/c2gohq/c2go_bind/blob/v0.20260801.0-rc.2/README.zh-CN.md#用法
   - label: c2go-libc PureGo bridge
-    url: https://github.com/c2gohq/c2go_libc/blob/v0.20260801.0-rc.1/dl/dispatch_unix.go
+    url: https://github.com/c2gohq/c2go_libc/blob/v0.20260801.0-rc.2/dl/dispatch_unix.go
 ---
 
 在当前实现中，只有声明、没有定义的普通函数默认就是 unmanaged host import。因此普通原生函数只需要常规 C 声明，不要求写 `unmanaged extern`。符号会通过宿主 C ABI 从真实 `.so`、`.dylib` 或 `.dll` 解析。

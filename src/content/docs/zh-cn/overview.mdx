@@ -4,14 +4,14 @@ description: 理解 C2Go 会生成什么、代码在哪里运行，以及它适�
 locale: zh-cn
 section: start
 order: 1
-release: v0.20260801.0-rc.1
+release: v0.20260801.0-rc.2
 sourceLinks:
   - label: C2Go 公开头文件
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.1/clang/lib/Headers/c2go.h
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.2/clang/lib/Headers/c2go.h
   - label: Driver 管线回归测试
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.1/clang/test/Driver/c2go-multifile.c
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.2/clang/test/Driver/c2go-multifile.c
   - label: 工具链发布页
-    url: https://github.com/c2gohq/c2go_toolchain/releases/tag/v0.20260801.0-rc.1
+    url: https://github.com/c2gohq/c2go_toolchain/releases/tag/v0.20260801.0-rc.2
 ---
 
 C2Go 是 Clang 的一种编译模式，它会把 **C 源码编译成可由 Go 工具链构建的 Go package 产物**。生成的代码运行在 Go runtime 下：使用 goroutine 栈和调度器，可以分配 Go GC 可见的对象，也可以跨越 C/Go 边界调用函数。
@@ -44,7 +44,7 @@ Go 工具链 + c2go-libc
 
 ## 它与普通 C 有什么区别
 
-C2Go 明确区分两个内存世界。当前实现的 translation unit 默认是 **unmanaged**；需要通过 record/pointer 属性或 `#pragma c2go managed(N) push` 区域显式选择 managed 行为：
+C2Go 明确区分两个内存世界。当前实现的 translation unit 默认是 **unmanaged**；通常使用无参数的 `#pragma c2go managed push` 区域启用全部 managed 默认行为，也可以通过 record/pointer 属性进行局部标注：
 
 - **managed** 值参与 Go runtime 的内存模型，并携带精确 GC 元数据；
 - **unmanaged** 值表示原生 C 内存或外部 C ABI 边界。

@@ -6,7 +6,7 @@ With the matching SDK on `PATH`:
 
 ```sh
 go mod init example.com/build-system
-go get github.com/c2gohq/c2go_libc@v0.20260801.0-rc.1
+go get github.com/c2gohq/c2go_libc@v0.20260801.0-rc.2
 
 make c2go-generate
 go test ./...

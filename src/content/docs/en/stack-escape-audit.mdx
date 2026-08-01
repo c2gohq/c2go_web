@@ -4,14 +4,14 @@ description: Understand C2Go's stack-pointer escape limitation and make the stan
 locale: en
 section: support
 order: 19
-release: v0.20260801.0-rc.1
+release: v0.20260801.0-rc.2
 sourceLinks:
   - label: Frontend stack-escape diagnostic
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.1/clang/test/Sema/c2go-managed-stack-escape.c
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.2/clang/test/Sema/c2go-managed-stack-escape.c
   - label: Whole-program escape gate
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.1/llvm/test/tools/c2go-lto/escape-audit-gate.test
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.2/llvm/test/tools/c2go-lto/escape-audit-gate.test
   - label: Driver nonfatal policy
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.1/clang/lib/Driver/ToolChains/C2Go.cpp#L33-L38
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.2/clang/lib/Driver/ToolChains/C2Go.cpp#L33-L38
 ---
 
 > **Release-blocking limitation:** C2Go does not perform Go-style escape promotion for C locals. A C stack allocation remains on the goroutine stack even when its address is saved in heap or global state. That address can dangle after the function returns or the goroutine stack moves.

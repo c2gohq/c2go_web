@@ -1,20 +1,20 @@
 export const release = {
-  version: "v0.20260801.0-rc.1",
+  version: "v0.20260801.0-rc.2",
   status: "release-candidate",
-  publishedAt: "2026-08-01T14:14:00Z",
+  publishedAt: "2026-08-01T17:07:43Z",
   llvmVersion: "22.1.7",
   goRange: ">= 1.25.0, < 1.26.0",
   builderGo: "1.25.9",
   abiEpoch: 1,
   releaseUrl:
-    "https://github.com/c2gohq/c2go_toolchain/releases/tag/v0.20260801.0-rc.1",
+    "https://github.com/c2gohq/c2go_toolchain/releases/tag/v0.20260801.0-rc.2",
   sourceUrl:
-    "https://github.com/c2gohq/c2go_toolchain/blob/v0.20260801.0-rc.1/toolchain.lock.json",
+    "https://github.com/c2gohq/c2go_toolchain/blob/v0.20260801.0-rc.2/toolchain.lock.json",
   components: [
     {
       name: "c2go-clang",
       repository: "https://github.com/c2gohq/c2go_clang",
-      revision: "c20af78f41c5ea34d0da970c4ce1cd83ca338420",
+      revision: "bf5c213a21ce1d84c69d3e85bae2ed270ab6f9fc",
       license: "Apache-2.0 WITH LLVM-exception",
     },
     {
