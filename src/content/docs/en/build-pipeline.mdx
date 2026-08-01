@@ -4,14 +4,14 @@ description: Follow C source through Clang, C2Go LTO, binding generation, and th
 locale: en
 section: start
 order: 4
-release: v0.20260729.0-rc.5
+release: v0.20260801.0-rc.1
 sourceLinks:
   - label: Driver pipeline regression test
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/test/Driver/c2go-multifile.c
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.1/clang/test/Driver/c2go-multifile.c
   - label: Standalone escape gate regression test
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/llvm/test/tools/c2go-lto/escape-audit-gate.test
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.1/llvm/test/tools/c2go-lto/escape-audit-gate.test
   - label: c2go-bind inputs
-    url: https://github.com/c2gohq/c2go_bind/blob/v0.20260729.0-rc.5/README.md#where-it-fits
+    url: https://github.com/c2gohq/c2go_bind/blob/v0.20260801.0-rc.1/README.md#where-it-fits
 ---
 
 C2Go separates compilation from package generation. Understanding that split makes build failures much easier to diagnose.
@@ -20,7 +20,7 @@ C2Go separates compilation from package generation. Understanding that split mak
 
 `c2go-clang` parses C with the C2Go language extensions enabled. The target triple controls both machine code and C data-model details—for example, `long` is 8 bytes on Linux and Darwin but 4 bytes on 64-bit Windows.
 
-When Plan 9 assembly or manifest output is requested, each source file is first compiled to LLVM bitcode. The driver then invokes the colocated `c2go-lto` tool.
+A normal `-fc2go -c` compile stops at pre-link LLVM bitcode and names the result `.o` for build-system compatibility. When Plan 9 assembly or manifest output is requested directly, the driver takes those same per-source bitcode modules and invokes the colocated `c2go-lto` tool immediately.
 
 ## Stage 2: C2Go LTO
 

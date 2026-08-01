@@ -4,14 +4,14 @@ description: 理解 C2Go 当前无法处理的栈指针逃逸，并把独立 LTO
 locale: zh-cn
 section: support
 order: 19
-release: v0.20260729.0-rc.5
+release: v0.20260801.0-rc.1
 sourceLinks:
   - label: 前端栈逃逸诊断
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/test/Sema/c2go-managed-stack-escape.c
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.1/clang/test/Sema/c2go-managed-stack-escape.c
   - label: 全程序逃逸门禁
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/llvm/test/tools/c2go-lto/escape-audit-gate.test
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.1/llvm/test/tools/c2go-lto/escape-audit-gate.test
   - label: Driver nonfatal 策略
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/lib/Driver/ToolChains/C2Go.cpp#L33-L38
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.1/clang/lib/Driver/ToolChains/C2Go.cpp#L33-L38
 ---
 
 > **会阻止发布的当前限制：** C2Go 不会对 C 局部变量执行 Go 编译器式的逃逸提升。即使一个 C 栈变量的地址被保存到堆或全局状态，它仍留在 goroutine 栈上；函数返回或 goroutine 栈移动后，这个地址可能成为悬空指针。
@@ -57,17 +57,19 @@ c2go_extern void save_local(struct Box *box) {
 mkdir -p .c2go-audit
 
 c2go-clang --target="$C2GO_TARGET" \
-  -fc2go -std=c2go23 -O0 -gline-tables-only \
-  -emit-llvm -c src/parser.c -o .c2go-audit/parser.bc
+  -fc2go -fc2go-package="$C2GO_PACKAGE" \
+  -std=c2go23 -O0 -gline-tables-only \
+  -c src/parser.c -o .c2go-audit/parser.o
 
 c2go-clang --target="$C2GO_TARGET" \
-  -fc2go -std=c2go23 -O0 -gline-tables-only \
-  -emit-llvm -c src/storage.c -o .c2go-audit/storage.bc
+  -fc2go -fc2go-package="$C2GO_PACKAGE" \
+  -std=c2go23 -O0 -gline-tables-only \
+  -c src/storage.c -o .c2go-audit/storage.o
 
-c2go-lto .c2go-audit/parser.bc .c2go-audit/storage.bc
+c2go-lto .c2go-audit/parser.o .c2go-audit/storage.o
 ```
 
-这是一条独立的审计构建：`-O0` 尽量保留源码形状，`-gline-tables-only` 让报告带上文件与行号。审计通过后，再用正常优化参数生成发布用汇编与 manifest。
+这些 `.o` 因为 `-fc2go -c` 停在 C2Go pre-link 边界而实际保存 LLVM bitcode。这是一条独立的审计构建：`-O0` 尽量保留源码形状，`-gline-tables-only` 让报告带上文件与行号。审计通过后，再用正常优化参数生成发布用汇编与 manifest。
 
 干净结果应为：
 

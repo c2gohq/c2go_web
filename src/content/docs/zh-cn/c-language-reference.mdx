@@ -4,14 +4,14 @@ description: 快速检索 C 关键字、语法、预处理，以及在 C2Go 下�
 locale: zh-cn
 section: reference
 order: 14
-release: v0.20260729.0-rc.5
+release: v0.20260801.0-rc.1
 sourceLinks:
   - label: C2Go 语言模式定义
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/include/clang/Basic/LangStandards.def#L113-L121
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.1/clang/include/clang/Basic/LangStandards.def#L113-L121
   - label: C2Go 语言默认项
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/lib/Frontend/CompilerInvocation.cpp#L1806-L1833
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.1/clang/lib/Frontend/CompilerInvocation.cpp#L1806-L1833
   - label: 变长数组拒绝逻辑
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/lib/Sema/SemaChecking.cpp#L2840-L2860
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.1/clang/lib/Sema/SemaChecking.cpp#L2840-L2860
 ---
 
 审阅现有 C 源码树时，可以先查这一页。C2Go 保留 Clang 的 C parser、preprocessor 和大多数普通表达式语义，再增加 Go 栈、GC 可见内存和跨 runtime 调用规则。上游 Clang 能接受某种写法，并不代表该写法的所有 ABI 用法都已被 C2Go 支持。

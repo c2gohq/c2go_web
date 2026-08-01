@@ -4,20 +4,20 @@ description: Adapt Makefiles and CMake projects to produce C2Go packages without
 locale: en
 section: guides
 order: 9
-release: v0.20260729.0-rc.5
+release: v0.20260801.0-rc.1
 sourceLinks:
   - label: Multi-file driver contract
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/test/Driver/c2go-multifile.c
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.1/clang/test/Driver/c2go-multifile.c
   - label: c2go-lto archive compatibility test
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/llvm/test/tools/c2go-lto/wf2-archive-roundtrip.test
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.1/llvm/test/tools/c2go-lto/wf2-archive-roundtrip.test
   - label: c2go-bind archive input
-    url: https://github.com/c2gohq/c2go_bind/blob/v0.20260729.0-rc.5/README.md#usage
+    url: https://github.com/c2gohq/c2go_bind/blob/v0.20260801.0-rc.1/README.md#usage
 ---
 
 `c2go-clang` accepts familiar preprocessing and compilation flags, but C2Go is not a drop-in replacement for the complete native compile-and-link pipeline. The replacement boundary ends at a generated Go package:
 
 ```text
-.c ──c2go-clang -c -emit-llvm──▶ .o (LLVM bitcode)
+.c ──c2go-clang -fc2go -c──────▶ .o (LLVM bitcode)
  .o files ──c2go-lto as AR─────▶ .a (.s + manifest members)
  .a ──c2go-bind────────────────▶ generated .go + .s package
  package ──go build/test───────▶ final program
@@ -71,7 +71,7 @@ $(C2GO_BUILD)/%.o: .c2go-src/%.c
 	@mkdir -p $(@D)
 	$(C2GO_CLANG) --target=$(C2GO_TARGET) \
 		-fc2go -fc2go-package=$(C2GO_PACKAGE) \
-		$(C2GO_CPPFLAGS) $(C2GO_CFLAGS) -emit-llvm \
+		$(C2GO_CPPFLAGS) $(C2GO_CFLAGS) \
 		-MMD -MP -MF $(@:.o=.d) -MT $@ \
 		-c $< -o $@
 
@@ -90,7 +90,7 @@ go test ./...
 
 The `.o` suffix preserves the build system's ordinary object graph, but these files contain LLVM bitcode rather than native machine code. The archive is a regular `ar` container whose useful members are Plan 9 assembly and the matching manifest; pass it to `c2go-bind`, not to a native linker.
 
-The `-emit-llvm` flag is required for this route; `-flto` is an equivalent way to make Clang write bitcode-wrapped `.o` files. A plain `-fc2go -c` without either flag currently writes a native ELF/Mach-O/COFF object, which `c2go-lto` cannot consume.
+A plain `-fc2go -c` deliberately writes pre-link LLVM bitcode while preserving the build system's `.o` filename. Neither `-emit-llvm` nor `-flto` is required. `-flto` remains accepted for compatibility with projects that add it globally, but it is not what enables the C2Go bitcode workflow. Reserve explicit `-emit-llvm` for IR inspection; it defaults to a `.bc` filename and should not appear in ordinary Makefile or CMake rules.
 
 The dependency files cover project headers. Treat the selected target, package path, optimization flags, and coordinated SDK release as part of the build cache key. Use a different build directory or invalidate the bitcode whenever one changes.
 
@@ -106,7 +106,7 @@ make libengine.a \
   CC=c2go-clang \
   AR=c2go-lto \
   RANLIB=: \
-  CFLAGS="--target=$C2GO_TARGET -fc2go -fc2go-package=$C2GO_PACKAGE -O2 -emit-llvm"
+  CFLAGS="--target=$C2GO_TARGET -fc2go -fc2go-package=$C2GO_PACKAGE -O2"
 
 c2go-bind --goname=engine --out=engine path/to/libengine.a
 ```
@@ -125,12 +125,14 @@ The archive compatibility mode always rebuilds the C2Go archive from the inputs 
 
 ## Direct CMake static-library replacement
 
-CMake can keep its normal `source → .o → static library` graph too. Setting only `CMAKE_C_COMPILER=c2go-clang` is not sufficient: the target must emit bitcode objects, the archive creation rule must call `c2go-lto`, the `ranlib` finish step must be disabled, and the resulting archive must be passed to `c2go-bind`.
+CMake can keep its normal `source → .o → static library` graph too. Setting only `CMAKE_C_COMPILER=c2go-clang` is not sufficient: the target must enable `-fc2go`, the archive creation rule must call `c2go-lto`, the `ranlib` finish step must be disabled, and the resulting archive must be passed to `c2go-bind`.
 
 Use this in a dedicated adapter project or directory whose static C libraries are all C2Go targets:
 
 ```cmake
 cmake_minimum_required(VERSION 3.20)
+set(C2GO_TARGET "x86_64-unknown-linux-goabi" CACHE STRING "C2Go target triple")
+set(CMAKE_C_COMPILER_TARGET "${C2GO_TARGET}")
 set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 project(engine_c2go LANGUAGES C)
 
@@ -142,7 +144,6 @@ endif()
 find_program(C2GO_LTO NAMES c2go-lto REQUIRED)
 find_program(C2GO_BIND NAMES c2go-bind REQUIRED)
 
-set(C2GO_TARGET "x86_64-unknown-linux-goabi" CACHE STRING "C2Go target triple")
 set(C2GO_PACKAGE "example.com/acme/engine" CACHE STRING "Go import path")
 set(C2GO_GO_OUT "${CMAKE_CURRENT_SOURCE_DIR}/engine" CACHE PATH "Generated Go package")
 
@@ -156,12 +157,10 @@ add_library(engine_c2go STATIC
 )
 target_include_directories(engine_c2go PRIVATE .c2go-src/include)
 target_compile_options(engine_c2go PRIVATE
-  "--target=${C2GO_TARGET}"
   -fc2go
   "-fc2go-package=${C2GO_PACKAGE}"
   -std=c17
   -O2
-  -emit-llvm
 )
 
 # Force an archive name that c2go-bind recognizes on every host OS.
@@ -193,9 +192,9 @@ cmake --build build --target engine_c2go
 go test ./...
 ```
 
-CMake's compile command still ends in `-c source.c -o source.c.o`; `-emit-llvm` changes the contents of that `.o` to bitcode. Its static-library step removes the old archive and invokes `c2go-lto qc engine.a <all objects>`, so the non-incremental archive contract is satisfied. The post-build binder step turns that archive into the Go package.
+CMake's compile command still ends in `-c source.c -o source.c.o`; `CMAKE_C_COMPILER_TARGET` supplies the GoABI target to every compile and `-fc2go` makes that `.o` pre-link bitcode by default. Its static-library step removes the old archive and invokes `c2go-lto qc engine.a <all objects>`, so the non-incremental archive contract is satisfied. The post-build binder step turns that archive into the Go package.
 
-`CMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY` keeps initial compiler checks from requiring a native executable linker; it does not make `try_run` valid. CMake normally injects an Apple SDK sysroot on macOS, so the adapter clears it before creating C2Go targets. Add host SDK headers back only for an explicitly reviewed native boundary, never as an accidental libc fallback.
+Set `CMAKE_C_COMPILER_TARGET` before `project()` so CMake configures the compiler as a cross compiler instead of adding host flags such as macOS `-arch arm64`. `CMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY` keeps initial compiler checks from requiring a native executable linker; it does not make `try_run` valid. CMake normally injects an Apple SDK sysroot on macOS, so the adapter clears it before creating C2Go targets. Add host SDK headers back only for an explicitly reviewed native boundary, never as an accidental libc fallback.
 
 The archive rules are directory-wide. If the same CMake directory also builds native static libraries, host tools, or targets that must use an ordinary archiver, keep those targets outside this adapter directory or use a separate `LANGUAGES NONE` custom target that invokes the C2Go pipeline explicitly.
 

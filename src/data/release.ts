@@ -1,32 +1,32 @@
 export const release = {
-  version: "v0.20260729.0-rc.5",
+  version: "v0.20260801.0-rc.1",
   status: "release-candidate",
-  publishedAt: "2026-07-31T09:34:03Z",
+  publishedAt: "2026-08-01T14:14:00Z",
   llvmVersion: "22.1.7",
   goRange: ">= 1.25.0, < 1.26.0",
   builderGo: "1.25.9",
   abiEpoch: 1,
   releaseUrl:
-    "https://github.com/c2gohq/c2go_toolchain/releases/tag/v0.20260729.0-rc.5",
+    "https://github.com/c2gohq/c2go_toolchain/releases/tag/v0.20260801.0-rc.1",
   sourceUrl:
-    "https://github.com/c2gohq/c2go_toolchain/blob/v0.20260729.0-rc.5/toolchain.lock.json",
+    "https://github.com/c2gohq/c2go_toolchain/blob/v0.20260801.0-rc.1/toolchain.lock.json",
   components: [
     {
       name: "c2go-clang",
       repository: "https://github.com/c2gohq/c2go_clang",
-      revision: "91b9fddbc5653fbbb321bfc22cb2d083cb96acc7",
+      revision: "c20af78f41c5ea34d0da970c4ce1cd83ca338420",
       license: "Apache-2.0 WITH LLVM-exception",
     },
     {
       name: "c2go-bind",
       repository: "https://github.com/c2gohq/c2go_bind",
-      revision: "cd64a2d5b9e5c7ad68e702e2fea39dfd5a6da0ee",
+      revision: "12759ab5ae6c7a71045e7768369c55b7e7bda477",
       license: "AGPL-3.0-only OR separate commercial agreement",
     },
     {
       name: "c2go-libc",
       repository: "https://github.com/c2gohq/c2go_libc",
-      revision: "3b54a25e78235b7ab75a31fd8bdaa0d3a4a5b27c",
+      revision: "f0f11239eaaaefcd144994bed689b22132ceb16b",
       license: "Mixed; see repository notices",
     },
     {

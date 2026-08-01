@@ -4,14 +4,14 @@ description: Diagnose failures by separating compiler, binder, Go ABI, runtime, 
 locale: en
 section: support
 order: 20
-release: v0.20260729.0-rc.5
+release: v0.20260801.0-rc.1
 sourceLinks:
   - label: Stack-escape frontend diagnostic
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/test/Sema/c2go-managed-stack-escape.c
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.1/clang/test/Sema/c2go-managed-stack-escape.c
   - label: Stack-escape LTO gate
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/llvm/test/tools/c2go-lto/escape-audit-gate.test
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.1/llvm/test/tools/c2go-lto/escape-audit-gate.test
   - label: c2go-bind requirements
-    url: https://github.com/c2gohq/c2go_bind/blob/v0.20260729.0-rc.5/README.md#requirements
+    url: https://github.com/c2gohq/c2go_bind/blob/v0.20260801.0-rc.1/README.md#requirements
 ---
 
 Start by identifying which stage failed. A compiler diagnostic, manifest validation error, Go build error, and runtime crash have different evidence and should not be debugged as one opaque pipeline.

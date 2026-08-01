@@ -4,14 +4,14 @@ description: 编译多个 translation unit，使用 C2Go LTO，并安全绑定 a
 locale: zh-cn
 section: guides
 order: 8
-release: v0.20260729.0-rc.5
+release: v0.20260801.0-rc.1
 sourceLinks:
   - label: c2go-clang 多文件 driver 测试
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/test/Driver/c2go-multifile.c
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.1/clang/test/Driver/c2go-multifile.c
   - label: c2go-lto 多 TU 测试
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/llvm/test/tools/c2go-lto/wf2-multi-tu.test
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.1/llvm/test/tools/c2go-lto/wf2-multi-tu.test
   - label: c2go-bind 多输入行为
-    url: https://github.com/c2gohq/c2go_bind/blob/v0.20260729.0-rc.5/README.zh-CN.md#用法
+    url: https://github.com/c2gohq/c2go_bind/blob/v0.20260801.0-rc.1/README.zh-CN.md#用法
 ---
 
 真实项目中，构成同一个生成 package 的所有 translation unit，必须使用一致的 package path、target、Go 版本窗口和 ABI epoch。
@@ -47,10 +47,16 @@ c2go-bind \
 高级构建系统可以先生成 bitcode，再显式调用 linker：
 
 ```sh
-c2go-lto parser.bc runtime.bc storage.bc \
+c2go-clang --target="$C2GO_TARGET" \
+  -fc2go -fc2go-package=example.com/acme/engine -O2 -c \
+  parser.c runtime.c storage.c
+
+c2go-lto parser.o runtime.o storage.o \
   --c2go-emit-asm=engine.s \
   --c2go-emit-manifest=engine.json
 ```
+
+这些编译产物虽然使用 `.o` 后缀，内容却是 pre-link LLVM bitcode；它们属于 `c2go-lto` 输入，不能交给系统 linker。
 
 常用选项：
 

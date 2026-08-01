@@ -23,7 +23,7 @@ $(C2GO_OBJECT): $(C2GO_SOURCE)
 	@mkdir -p $(@D)
 	$(C2GO_CLANG) --target=$(C2GO_TARGET) \
 		-fc2go -fc2go-package=$(C2GO_PACKAGE) \
-		-std=c17 -O2 -emit-llvm \
+		-std=c17 -O2 \
 		-MMD -MP -MF $(C2GO_DEPFILE) -MT $@ \
 		-c $< -o $@
 

@@ -4,14 +4,14 @@ description: Allocate typed C objects on the Go heap and preserve their pointer 
 locale: en
 section: guides
 order: 7
-release: v0.20260729.0-rc.5
+release: v0.20260801.0-rc.1
 sourceLinks:
   - label: GC allocation and type information
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/lib/Headers/c2go.h#L120-L149
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.1/clang/lib/Headers/c2go.h#L120-L149
   - label: c2go-libc typed GC allocator
-    url: https://github.com/c2gohq/c2go_libc/blob/v0.20260729.0-rc.5/gc_malloc.go
+    url: https://github.com/c2gohq/c2go_libc/blob/v0.20260801.0-rc.1/gc_malloc.go
   - label: c2go-libc malloc implementation
-    url: https://github.com/c2gohq/c2go_libc/blob/v0.20260729.0-rc.5/malloc.go
+    url: https://github.com/c2gohq/c2go_libc/blob/v0.20260801.0-rc.1/malloc.go
 ---
 
 `gc_malloc` allocates zeroed memory on the Go heap. Unlike ordinary C allocation, it accepts runtime type information so the collector knows which machine words contain pointers.

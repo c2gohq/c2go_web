@@ -4,14 +4,14 @@ description: 跟踪 C 源码如何经过 Clang、C2Go LTO、绑定生成器和 G
 locale: zh-cn
 section: start
 order: 4
-release: v0.20260729.0-rc.5
+release: v0.20260801.0-rc.1
 sourceLinks:
   - label: Driver 管线回归测试
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/test/Driver/c2go-multifile.c
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.1/clang/test/Driver/c2go-multifile.c
   - label: 独立逃逸门禁回归测试
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/llvm/test/tools/c2go-lto/escape-audit-gate.test
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.1/llvm/test/tools/c2go-lto/escape-audit-gate.test
   - label: c2go-bind 输入
-    url: https://github.com/c2gohq/c2go_bind/blob/v0.20260729.0-rc.5/README.zh-CN.md#它在工具链中的位置
+    url: https://github.com/c2gohq/c2go_bind/blob/v0.20260801.0-rc.1/README.zh-CN.md#它在工具链中的位置
 ---
 
 C2Go 把编译和 package 生成拆成两个阶段。理解这个边界，会让构建失败更容易定位。
@@ -20,7 +20,7 @@ C2Go 把编译和 package 生成拆成两个阶段。理解这个边界，会让
 
 `c2go-clang` 在启用 C2Go 语言扩展后解析 C。target triple 同时控制机器代码和 C data model，例如 `long` 在 Linux 与 Darwin 上为 8 字节，而在 64 位 Windows 上为 4 字节。
 
-请求输出 Plan 9 汇编或 manifest 时，每个源文件会先编译成 LLVM bitcode，driver 随后调用同一 `bin/` 目录中的 `c2go-lto`。
+普通 `-fc2go -c` 会停在 pre-link LLVM bitcode，并为兼容构建系统把文件命名为 `.o`。直接请求 Plan 9 汇编或 manifest 时，driver 会把相同的逐源码 bitcode 立即交给同一 `bin/` 目录中的 `c2go-lto`。
 
 ## 阶段二：C2Go LTO
 

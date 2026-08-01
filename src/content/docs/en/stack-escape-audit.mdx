@@ -4,14 +4,14 @@ description: Understand C2Go's stack-pointer escape limitation and make the stan
 locale: en
 section: support
 order: 19
-release: v0.20260729.0-rc.5
+release: v0.20260801.0-rc.1
 sourceLinks:
   - label: Frontend stack-escape diagnostic
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/test/Sema/c2go-managed-stack-escape.c
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.1/clang/test/Sema/c2go-managed-stack-escape.c
   - label: Whole-program escape gate
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/llvm/test/tools/c2go-lto/escape-audit-gate.test
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.1/llvm/test/tools/c2go-lto/escape-audit-gate.test
   - label: Driver nonfatal policy
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260729.0-rc.5/clang/lib/Driver/ToolChains/C2Go.cpp#L33-L38
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.1/clang/lib/Driver/ToolChains/C2Go.cpp#L33-L38
 ---
 
 > **Release-blocking limitation:** C2Go does not perform Go-style escape promotion for C locals. A C stack allocation remains on the goroutine stack even when its address is saved in heap or global state. That address can dangle after the function returns or the goroutine stack moves.
@@ -57,17 +57,19 @@ That syntactic check cannot follow every value through helper calls or across tr
 mkdir -p .c2go-audit
 
 c2go-clang --target="$C2GO_TARGET" \
-  -fc2go -std=c2go23 -O0 -gline-tables-only \
-  -emit-llvm -c src/parser.c -o .c2go-audit/parser.bc
+  -fc2go -fc2go-package="$C2GO_PACKAGE" \
+  -std=c2go23 -O0 -gline-tables-only \
+  -c src/parser.c -o .c2go-audit/parser.o
 
 c2go-clang --target="$C2GO_TARGET" \
-  -fc2go -std=c2go23 -O0 -gline-tables-only \
-  -emit-llvm -c src/storage.c -o .c2go-audit/storage.bc
+  -fc2go -fc2go-package="$C2GO_PACKAGE" \
+  -std=c2go23 -O0 -gline-tables-only \
+  -c src/storage.c -o .c2go-audit/storage.o
 
-c2go-lto .c2go-audit/parser.bc .c2go-audit/storage.bc
+c2go-lto .c2go-audit/parser.o .c2go-audit/storage.o
 ```
 
-`-O0` preserves source shapes for this separate audit build, while `-gline-tables-only` gives the audit useful file and line locations. Generate the release assembly and manifest with your normal optimized command after the audit passes.
+These `.o` files are LLVM bitcode because `-fc2go -c` stops at the C2Go pre-link boundary. `-O0` preserves source shapes for this separate audit build, while `-gline-tables-only` gives the audit useful file and line locations. Generate the release assembly and manifest with your normal optimized command after the audit passes.
 
 Expected clean output:
 

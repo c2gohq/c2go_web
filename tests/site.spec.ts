@@ -177,7 +177,10 @@ test("build-system integration keeps native linking outside the C2Go pipeline", 
   );
   await expect(english).toContainText("AR=c2go-lto");
   await expect(english).toContainText(
-    "A plain -fc2go -c without either flag currently writes a native",
+    "A plain -fc2go -c deliberately writes pre-link LLVM bitcode",
+  );
+  await expect(english).not.toContainText(
+    "The -emit-llvm flag is required for this route",
   );
   await expect(english).toContainText("CMAKE_C_ARCHIVE_CREATE");
 
