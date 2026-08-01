@@ -88,7 +88,7 @@ These forms are not interchangeable with `&fn`. The raw native address and the c
 Supported forms are:
 
 ```c
-#pragma c2go managed(6) push
+#pragma c2go managed(C2GO_PTR | C2GO_RECORD) push
 /* declarations */
 #pragma c2go pop
 
@@ -97,7 +97,7 @@ Supported forms are:
 #pragma c2go pop
 ```
 
-The `managed(N)` parser expects one numeric token. It does not macro-expand `C2GO_PTR | C2GO_RECORD`, so write the computed literal.
+`managed(N)` accepts integers or macros combined with parentheses and bitwise OR (`|`). Macros are expanded before the mask is evaluated, and the final value must be in the range `0..7`. Other expression operators such as `+` and `-` are intentionally unsupported.
 
 | Bit | Header name   | Effect inside the region                                                                  |
 | --- | ------------- | ----------------------------------------------------------------------------------------- |
@@ -105,7 +105,7 @@ The `managed(N)` parser expects one numeric token. It does not macro-expand `C2G
 | `2` | `C2GO_PTR`    | Unannotated pointer-shaped declarations default to managed.                               |
 | `4` | `C2GO_RECORD` | Completed records participate in managed-record inference.                                |
 
-`managed(7)` enables all three bits; `managed(6)` is the usual record-and-pointer region; `unmanaged push` is equivalent to a zero mask. Regions nest, and each `pop` unwinds one level.
+`managed(7)` or `managed(C2GO_FUNC | C2GO_PTR | C2GO_RECORD)` enables all three bits. `managed(6)` is equivalent to the usual `managed(C2GO_PTR | C2GO_RECORD)`. `unmanaged push` is equivalent to a zero mask. Regions nest, and each `pop` unwinds one level.
 
 ## Selector constants
 
@@ -114,8 +114,6 @@ The `managed(N)` parser expects one numeric token. It does not macro-expand `C2G
 | `C2GO_EXPORTED` | `1`   | `c2go_extern_as` | Generate the normal exported CamelCase Go identifier. |
 | `C2GO_KEEPCASE` | `0`   | `c2go_extern_as` | Keep the C spelling as the Go source identifier.      |
 | `C2GO_GOABI0`   | `1`   | `c2go_linkname`  | The target symbol already provides an ABI0 entry.     |
-
-The `C2GO_FUNC`, `C2GO_PTR`, and `C2GO_RECORD` names document pragma bits but cannot be written inside `managed(...)` in the current parser.
 
 ## Go boundary types
 

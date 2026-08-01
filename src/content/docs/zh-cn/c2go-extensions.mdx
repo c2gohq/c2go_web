@@ -88,7 +88,7 @@ struct Node *node = gc_malloc(
 支持的形式是：
 
 ```c
-#pragma c2go managed(6) push
+#pragma c2go managed(C2GO_PTR | C2GO_RECORD) push
 /* declarations */
 #pragma c2go pop
 
@@ -97,7 +97,7 @@ struct Node *node = gc_malloc(
 #pragma c2go pop
 ```
 
-`managed(N)` parser 只读取一个数字 token，不会 macro-expand `C2GO_PTR | C2GO_RECORD`，因此必须写计算后的数字 literal。
+`managed(N)` 接受整数或宏，并允许使用括号和按位 OR（`|`）组合。宏会先展开，再计算掩码；最终值必须在 `0..7` 范围内。这里有意不接受 `+`、`-` 等其他表达式运算符。
 
 | Bit | Header 名称   | Region 内效果                                                     |
 | --- | ------------- | ----------------------------------------------------------------- |
@@ -105,7 +105,7 @@ struct Node *node = gc_malloc(
 | `2` | `C2GO_PTR`    | 未注解的 pointer-shaped declaration 默认变为 managed。            |
 | `4` | `C2GO_RECORD` | 完成定义的 record 参与 managed-record inference。                 |
 
-`managed(7)` 启用三个 bit，`managed(6)` 是常用的 record + pointer region，`unmanaged push` 等价于零 mask。Region 可以嵌套，每个 `pop` 只退出一层。
+`managed(7)` 或 `managed(C2GO_FUNC | C2GO_PTR | C2GO_RECORD)` 会启用三个 bit；`managed(6)` 等价于常用的 `managed(C2GO_PTR | C2GO_RECORD)`。`unmanaged push` 等价于零 mask。Region 可以嵌套，每个 `pop` 只退出一层。
 
 ## Selector 常量
 
@@ -114,8 +114,6 @@ struct Node *node = gc_malloc(
 | `C2GO_EXPORTED` | `1` | `c2go_extern_as` | 生成常规 exported CamelCase Go identifier。 |
 | `C2GO_KEEPCASE` | `0` | `c2go_extern_as` | Go 源码 identifier 保留 C 拼写。            |
 | `C2GO_GOABI0`   | `1` | `c2go_linkname`  | 目标 symbol 已经提供 ABI0 entry。           |
-
-`C2GO_FUNC`、`C2GO_PTR`、`C2GO_RECORD` 用来记录 pragma bit 的含义，但当前 parser 不允许把这些名称直接写进 `managed(...)`。
 
 ## Go 边界类型
 
