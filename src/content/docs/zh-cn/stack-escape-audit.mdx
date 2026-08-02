@@ -4,14 +4,14 @@ description: 理解 C2Go 当前无法处理的栈指针逃逸，并把独立 LTO
 locale: zh-cn
 section: support
 order: 19
-release: v0.20260801.0-rc.2
+release: v0.20260802.0-rc.1
 sourceLinks:
   - label: 前端栈逃逸诊断
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.2/clang/test/Sema/c2go-managed-stack-escape.c
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260802.0-rc.1/clang/test/Sema/c2go-managed-stack-escape.c
   - label: 全程序逃逸门禁
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.2/llvm/test/tools/c2go-lto/escape-audit-gate.test
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260802.0-rc.1/llvm/test/tools/c2go-lto/escape-audit-gate.test
   - label: Driver nonfatal 策略
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.2/clang/lib/Driver/ToolChains/C2Go.cpp#L33-L38
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260802.0-rc.1/clang/lib/Driver/ToolChains/C2Go.cpp#L33-L38
 ---
 
 > **会阻止发布的当前限制：** C2Go 不会对 C 局部变量执行 Go 编译器式的逃逸提升。即使一个 C 栈变量的地址被保存到堆或全局状态，它仍留在 goroutine 栈上；函数返回或 goroutine 栈移动后，这个地址可能成为悬空指针。

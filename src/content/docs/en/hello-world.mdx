@@ -4,12 +4,12 @@ description: Compile one C function into a Go package and call it from a Go test
 locale: en
 section: start
 order: 3
-release: v0.20260801.0-rc.2
+release: v0.20260802.0-rc.1
 sourceLinks:
   - label: C2Go driver regression test
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.2/clang/test/Driver/c2go-multifile.c
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260802.0-rc.1/clang/test/Driver/c2go-multifile.c
   - label: c2go-bind usage
-    url: https://github.com/c2gohq/c2go_bind/blob/v0.20260801.0-rc.2/README.md#usage
+    url: https://github.com/c2gohq/c2go_bind/blob/v0.20260802.0-rc.1/README.md#usage
 ---
 
 This walkthrough compiles one C addition function into a Go package and calls it from a Go test. It assumes the matching SDK is on `PATH` and `C2GO_TARGET` contains the target triple for your downloaded archive.
@@ -21,7 +21,7 @@ mkdir hello-c2go
 cd hello-c2go
 mkdir .c2go
 go mod init example.com/hello-c2go
-go get github.com/c2gohq/c2go_libc@v0.20260801.0-rc.2
+go get github.com/c2gohq/c2go_libc@v0.20260802.0-rc.1
 ```
 
 Set the triple that matches your SDK. For macOS arm64:

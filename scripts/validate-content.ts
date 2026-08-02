@@ -51,7 +51,7 @@ for (const locale of locales) {
     if (!frontmatter.includes("sourceLinks:")) {
       throw new Error(`${filename}: sourceLinks is required`);
     }
-    if (source.includes("c2go_clang/blob/v0.20260801.0-rc.2/docs/c2go/")) {
+    if (source.includes("c2go_clang/blob/v0.20260802.0-rc.1/docs/c2go/")) {
       throw new Error(
         `${filename}: source link points at unpublished c2go_clang/docs/c2go content`,
       );

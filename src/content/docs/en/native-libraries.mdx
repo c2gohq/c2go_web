@@ -4,14 +4,14 @@ description: Import host C ABI symbols while keeping the managed boundary explic
 locale: en
 section: interop
 order: 11
-release: v0.20260801.0-rc.2
+release: v0.20260802.0-rc.1
 sourceLinks:
   - label: Unmanaged import manifest test
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.2/clang/test/CodeGen/c2go-unmanaged-extern-manifest.c
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260802.0-rc.1/clang/test/CodeGen/c2go-unmanaged-extern-manifest.c
   - label: c2go-bind linker options
-    url: https://github.com/c2gohq/c2go_bind/blob/v0.20260801.0-rc.2/README.md#usage
+    url: https://github.com/c2gohq/c2go_bind/blob/v0.20260802.0-rc.1/README.md#usage
   - label: c2go-libc PureGo bridge
-    url: https://github.com/c2gohq/c2go_libc/blob/v0.20260801.0-rc.2/dl/dispatch_unix.go
+    url: https://github.com/c2gohq/c2go_libc/blob/v0.20260802.0-rc.1/dl/dispatch_unix.go
 ---
 
 A declared-only function is an unmanaged host import by default in the current implementation. An ordinary native function therefore needs only a normal C declaration; `unmanaged extern` is not required. The symbol is resolved from a `.so`, `.dylib`, or `.dll` through the host C ABI.

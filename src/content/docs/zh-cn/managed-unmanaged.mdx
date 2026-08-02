@@ -4,14 +4,14 @@ description: 判断一块 C 数据应由 Go GC 管理，还是继续使用普通
 locale: zh-cn
 section: guides
 order: 6
-release: v0.20260801.0-rc.2
+release: v0.20260802.0-rc.1
 sourceLinks:
   - label: Managed pointer 回归测试
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.2/clang/test/CodeGen/c2go-managed-addrspace.c
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260802.0-rc.1/clang/test/CodeGen/c2go-managed-addrspace.c
   - label: 布局安全检查
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.2/clang/test/Sema/c2go-unmanaged-record-managed-field-reject.c
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260802.0-rc.1/clang/test/Sema/c2go-unmanaged-record-managed-field-reject.c
   - label: c2go-libc malloc 实现
-    url: https://github.com/c2gohq/c2go_libc/blob/v0.20260801.0-rc.2/malloc.go
+    url: https://github.com/c2gohq/c2go_libc/blob/v0.20260802.0-rc.1/malloc.go
 ---
 
 C 程序通常自己决定内存何时释放；Go 则由垃圾回收器决定对象何时可以回收。C2Go 需要知道某个 C 指针属于哪一种生命周期，否则 Go GC 可能看不到仍在使用的对象。

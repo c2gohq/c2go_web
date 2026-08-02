@@ -1,6 +1,27 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
+test("release page points to the coordinated snapshot", async ({ page }) => {
+  const version = "v0.20260802.0-rc.1";
+  await page.goto("/en/releases/");
+
+  await expect(
+    page.getByRole("heading", { level: 1, name: version }),
+  ).toBeVisible();
+  await expect(
+    page.locator(`a[href*="/releases/download/${version}/"]`),
+  ).toHaveCount(4);
+  await expect(
+    page.locator(`a[href$="c2go-toolchain-${version}-linux-arm64.tar.gz"]`),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: /Checksums and source archive/ }),
+  ).toHaveAttribute(
+    "href",
+    `https://github.com/c2gohq/c2go_toolchain/releases/tag/${version}`,
+  );
+});
+
 test("English landing page exposes the real pipeline", async ({
   page,
 }, testInfo) => {

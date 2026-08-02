@@ -4,14 +4,14 @@ description: 在 Go heap 上分配带类型的 C 对象，并保留准确的指�
 locale: zh-cn
 section: guides
 order: 7
-release: v0.20260801.0-rc.2
+release: v0.20260802.0-rc.1
 sourceLinks:
   - label: GC 分配与类型信息
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.2/clang/lib/Headers/c2go.h#L120-L149
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260802.0-rc.1/clang/lib/Headers/c2go.h#L120-L149
   - label: c2go-libc typed GC 分配实现
-    url: https://github.com/c2gohq/c2go_libc/blob/v0.20260801.0-rc.2/gc_malloc.go
+    url: https://github.com/c2gohq/c2go_libc/blob/v0.20260802.0-rc.1/gc_malloc.go
   - label: c2go-libc malloc 实现
-    url: https://github.com/c2gohq/c2go_libc/blob/v0.20260801.0-rc.2/malloc.go
+    url: https://github.com/c2gohq/c2go_libc/blob/v0.20260802.0-rc.1/malloc.go
 ---
 
 `gc_malloc` 会在 Go heap 上分配清零内存。与普通 C 分配不同，它接收 runtime 类型信息，让垃圾回收器知道哪些机器字保存着指针。

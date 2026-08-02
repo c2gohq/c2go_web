@@ -4,14 +4,14 @@ description: Decide whether C data belongs to the Go garbage collector or keeps 
 locale: en
 section: guides
 order: 6
-release: v0.20260801.0-rc.2
+release: v0.20260802.0-rc.1
 sourceLinks:
   - label: Managed pointer regression test
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.2/clang/test/CodeGen/c2go-managed-addrspace.c
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260802.0-rc.1/clang/test/CodeGen/c2go-managed-addrspace.c
   - label: Layout safety checks
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260801.0-rc.2/clang/test/Sema/c2go-unmanaged-record-managed-field-reject.c
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260802.0-rc.1/clang/test/Sema/c2go-unmanaged-record-managed-field-reject.c
   - label: c2go-libc malloc implementation
-    url: https://github.com/c2gohq/c2go_libc/blob/v0.20260801.0-rc.2/malloc.go
+    url: https://github.com/c2gohq/c2go_libc/blob/v0.20260802.0-rc.1/malloc.go
 ---
 
 C programs normally decide when memory is released. Go lets the garbage collector decide when an object is no longer reachable. C2Go must know which lifetime a C pointer belongs to; otherwise the Go GC could miss an object that is still in use.
