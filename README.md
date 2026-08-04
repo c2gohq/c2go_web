@@ -23,6 +23,8 @@ pnpm test:e2e
 ```
 
 `pnpm build` writes the static site and localized Pagefind indexes to `dist/`.
+It also validates canonical URLs, hreflang clusters, social metadata, JSON-LD,
+and agreement between indexable pages and the generated sitemap.
 
 ## Content
 

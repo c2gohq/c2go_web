@@ -12,9 +12,19 @@ const cn = locale === "zh-cn";
 
 const copy = cn
   ? {
-      title: "把 C 带入 Go runtime。",
+      seoTitle: "将 C 编译为无需 cgo 的 Go Package",
+      title: "把 C 编译成无需 cgo 的 Go package。",
       description:
-        "把 C 提前编译成可直接导入的普通 Go package，在 Go runtime 中运行，并支持不依赖 cgo 的最终构建。",
+        "使用 C2Go 将 C 源码提前编译成可导入的 Go package，让代码在 Go runtime 中运行，并支持无需 cgo 的消费者构建。",
+      capabilitiesLabel: "C2Go 核心能力",
+      pipelineLabel: "C2Go 编译管线",
+      whatTitle: "C-to-Go 编译工具链，而不是源码改写器",
+      whatBody:
+        "C2Go 是一种基于 Clang 的提前编译模式，适合把现有 C 实现复用或迁移到普通 Go package 中。它生成供 Go assembler 使用的 Plan 9 汇编与结构化 manifest，再由 c2go-bind 生成 Go 工具链可以直接构建的 package。",
+      whatDetail:
+        "它不会承诺把任意 C 自动改写成人工维护的 Go 源码。C2Go 保留 C 作为实现语言，同时让产物使用 goroutine 栈、Go 调度器和可选的 GC 感知内存模型。",
+      learnOverview: "了解 C2Go 的工作方式",
+      learnLimits: "查看平台与限制",
       start: "开始使用",
       github: "查看 GitHub",
       pureGoHighlight: "PureGo · CGO_ENABLED=0",
@@ -51,11 +61,44 @@ const copy = cn
       cInput: "C 输入",
       goOutput: "Go 调用",
       runtime: "提供 C runtime 与 Go runtime 的兼容层",
+      faqTitle: "C2Go 常见问题",
+      faqs: [
+        {
+          question: "C2Go 会把 C 改写成 Go 源码吗？",
+          answer:
+            "不会做通用的 source-to-source 改写。c2go-clang 编译 C，c2go-bind 再生成组成普通 Go package 所需的 .go 与 .s 文件。",
+        },
+        {
+          question: "最终 Go package 需要 cgo 吗？",
+          answer:
+            "不需要。生成阶段需要 C2Go SDK，但消费者可以在 CGO_ENABLED=0、没有宿主 C 编译器的环境中构建。",
+        },
+        {
+          question: "目前支持哪些代码和平台？",
+          answer:
+            "当前候选版本面向 C，不支持 C++；发布页提供 Linux amd64/arm64、Windows amd64 与 macOS arm64 SDK。采用前应核对语言、ABI、回调和栈指针限制。",
+        },
+        {
+          question: "现在适合直接用于生产吗？",
+          answer:
+            "当前发布仍是 pre-1.0 候选版本，二进制尚未签名，API 与 ABI 也可能变化。它更适合评估、兼容性验证和受控迁移。",
+        },
+      ],
     }
   : {
-      title: "Bring C into the Go runtime.",
+      seoTitle: "Compile C to Go Packages Without cgo",
+      title: "Compile C into Go packages without cgo.",
       description:
-        "Ahead-of-time compile C into a normal, directly importable Go package that runs in the Go runtime and builds without cgo.",
+        "Compile C source into importable Go packages with C2Go, a Clang-based ahead-of-time toolchain that runs code in the Go runtime and builds without cgo.",
+      capabilitiesLabel: "C2Go core capabilities",
+      pipelineLabel: "C2Go compilation pipeline",
+      whatTitle: "A C-to-Go compiler toolchain, not a source rewriter",
+      whatBody:
+        "C2Go is a Clang-based ahead-of-time compilation mode for reusing or migrating existing C implementations as ordinary Go packages. It emits Plan 9 assembly for the Go assembler and a structured manifest, then c2go-bind generates a package the Go toolchain can build directly.",
+      whatDetail:
+        "It does not promise to rewrite arbitrary C into hand-maintained Go source. C remains the implementation language while the compiled result uses goroutine stacks, Go scheduling, and an optional GC-aware memory model.",
+      learnOverview: "Learn how C2Go works",
+      learnLimits: "Review platforms and limits",
       start: "Get started",
       github: "View on GitHub",
       pureGoHighlight: "PureGo · CGO_ENABLED=0",
@@ -93,10 +136,110 @@ const copy = cn
       cInput: "C input",
       goOutput: "Go call",
       runtime: "C runtime compatibility for the Go runtime environment",
+      faqTitle: "C2Go frequently asked questions",
+      faqs: [
+        {
+          question: "Does C2Go rewrite C as Go source?",
+          answer:
+            "It is not a general source-to-source rewriter. c2go-clang compiles C, and c2go-bind generates the .go and .s files that make up an ordinary Go package.",
+        },
+        {
+          question: "Does the final Go package require cgo?",
+          answer:
+            "No. Generation requires the C2Go SDK, but consumers can build with CGO_ENABLED=0 and without a host C compiler.",
+        },
+        {
+          question: "Which code and platforms are supported?",
+          answer:
+            "The current candidate targets C, not C++. Published SDKs cover Linux amd64/arm64, Windows amd64, and macOS arm64. Review the language, ABI, callback, and stack-pointer limits before adoption.",
+        },
+        {
+          question: "Is C2Go production-ready?",
+          answer:
+            "The current build is a pre-1.0 release candidate. Binaries are unsigned, and APIs and ABI details may change, so it is intended for evaluation, compatibility testing, and controlled migrations.",
+        },
+      ],
     };
+
+const language = cn ? "zh-CN" : "en";
+const rootUrl = new URL("/", Astro.site).href;
+const organizationUrl = new URL("/en/", Astro.site).href;
+const pageUrl = new URL(Astro.url.pathname, Astro.site).href;
+const organizationId = `${rootUrl}#organization`;
+const websiteId = `${rootUrl}#website`;
+const softwareId = `${rootUrl}#software`;
+const structuredData = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": organizationId,
+      name: "C2Go",
+      url: organizationUrl,
+      logo: {
+        "@type": "ImageObject",
+        url: new URL("/brand/c2gohq-logo-180.png", Astro.site).href,
+        width: 180,
+        height: 180,
+      },
+      sameAs: ["https://github.com/c2gohq"],
+    },
+    {
+      "@type": "WebSite",
+      "@id": websiteId,
+      url: rootUrl,
+      name: "C2Go",
+      description: copy.description,
+      inLanguage: ["en", "zh-CN"],
+      publisher: { "@id": organizationId },
+    },
+    {
+      "@type": "SoftwareSourceCode",
+      "@id": softwareId,
+      name: "C2Go",
+      alternateName: "C2Go Toolchain",
+      url: "https://github.com/c2gohq/c2go_toolchain",
+      description: copy.description,
+      inLanguage: language,
+      version: release.version,
+      codeRepository: "https://github.com/c2gohq/c2go_toolchain",
+      programmingLanguage: ["C", "Go"],
+      runtimePlatform: "Go runtime",
+      keywords: [
+        "C-to-Go compiler",
+        "Go package",
+        "cgo alternative",
+        "C interoperability",
+      ],
+      license: new URL(`/${locale}/docs/licensing/`, Astro.site).href,
+      sameAs: ["https://github.com/c2gohq/c2go_toolchain"],
+      publisher: { "@id": organizationId },
+      mainEntityOfPage: pageUrl,
+    },
+    {
+      "@type": "FAQPage",
+      "@id": `${pageUrl}#faq`,
+      url: `${pageUrl}#faq`,
+      inLanguage: language,
+      mainEntity: copy.faqs.map((faq) => ({
+        "@type": "Question",
+        name: faq.question,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: faq.answer,
+        },
+      })),
+    },
+  ],
+};
 ---
 
-<BaseLayout locale={locale} title="C2Go" description={copy.description}>
+<BaseLayout
+  locale={locale}
+  title={copy.seoTitle}
+  description={copy.description}
+  structuredData={structuredData}
+>
   <main id="main-content" class="home-main">
     <section class="hero">
       <div class="hero-inner">
@@ -113,13 +256,13 @@ const copy = cn
               >{copy.github}<Icon name="external" size={16} /></a
             >
           </div>
-          <ul class="hero-highlights" aria-label="C2Go core capabilities">
+          <ul class="hero-highlights" aria-label={copy.capabilitiesLabel}>
             <li>{copy.pureGoHighlight}</li>
             <li>{copy.gcHighlight}</li>
             <li>{copy.abiHighlight}</li>
           </ul>
         </div>
-        <div class="hero-diagram" aria-label="C2Go compilation pipeline">
+        <div class="hero-diagram" aria-label={copy.pipelineLabel}>
           <div class="hero-stage-row">
             <div class="diagram-node">
               <Icon name="file" size={28} /><strong>C source</strong>
@@ -164,6 +307,25 @@ result := translated.Add(20, 22)`}</code></pre>
             </figure>
           </div>
         </div>
+      </div>
+    </section>
+
+    <section class="home-overview" aria-labelledby="what-is-c2go">
+      <div>
+        <p>C2Go</p>
+        <h2 id="what-is-c2go">{copy.whatTitle}</h2>
+      </div>
+      <div>
+        <p>{copy.whatBody}</p>
+        <p>{copy.whatDetail}</p>
+        <nav aria-label={copy.whatTitle}>
+          <a href={docsPath(locale, "overview")}
+            >{copy.learnOverview}<Icon name="arrow" size={16} /></a
+          >
+          <a href={docsPath(locale, "platforms-limitations")}
+            >{copy.learnLimits}<Icon name="arrow" size={16} /></a
+          >
+        </nav>
       </div>
     </section>
 
@@ -300,6 +462,22 @@ go test ./...`}</code></pre>
         }
       </div>
       <p class="platform-note"><span>i</span>{copy.platformNote}</p>
+    </section>
+
+    <section class="faq-section" id="faq" aria-labelledby="faq-heading">
+      <div class="section-heading centered">
+        <h2 id="faq-heading">{copy.faqTitle}</h2>
+      </div>
+      <div class="faq-grid">
+        {
+          copy.faqs.map((faq) => (
+            <article>
+              <h3>{faq.question}</h3>
+              <p>{faq.answer}</p>
+            </article>
+          ))
+        }
+      </div>
     </section>
 
     <section class="final-cta">

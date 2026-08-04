@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "astro dev",
-    "build": "astro check && astro build && pagefind --site dist && tsx scripts/check-links.ts",
+    "build": "astro check && astro build && tsx scripts/check-seo.ts && pagefind --site dist && tsx scripts/check-links.ts",
     "preview": "astro preview",
     "check": "astro check && tsx scripts/validate-content.ts",
     "format": "prettier --write .",

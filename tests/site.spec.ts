@@ -27,8 +27,21 @@ test("English landing page exposes the real pipeline", async ({
 }, testInfo) => {
   await page.goto("/en/");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "Bring C into the Go runtime.",
+    "Compile C into Go packages without cgo.",
   );
+  await expect(page).toHaveTitle("Compile C to Go Packages Without cgo · C2Go");
+  await expect(
+    page.getByRole("heading", {
+      level: 2,
+      name: "A C-to-Go compiler toolchain, not a source rewriter",
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      level: 2,
+      name: "C2Go frequently asked questions",
+    }),
+  ).toBeVisible();
   await expect(page.getByText("c2go-clang").first()).toBeVisible();
   const bindStage =
     testInfo.project.name === "mobile"
@@ -55,6 +68,18 @@ test("the package import path is supplied only to c2go-clang", async ({
 }) => {
   await page.goto("/en/docs/hello-world/");
   const article = page.locator("article.docs-article");
+  const breadcrumb = page.getByRole("navigation", { name: "Breadcrumb" });
+  await expect(breadcrumb.getByRole("link", { name: "C2Go" })).toHaveAttribute(
+    "href",
+    "/en/",
+  );
+  await expect(breadcrumb.getByRole("link", { name: "Docs" })).toHaveAttribute(
+    "href",
+    "/en/docs/overview/",
+  );
+  await expect(
+    page.getByRole("link", { name: "C2Go contributors" }),
+  ).toHaveAttribute("href", "https://github.com/c2gohq");
   await expect(article).toContainText(
     "-fc2go-package=example.com/hello-c2go/translated",
   );
@@ -214,13 +239,21 @@ test("build-system integration keeps native linking outside the C2Go pipeline", 
   );
 });
 
-test("root route selects Chinese from the browser locale", async ({
+test("root route exposes crawlable language links and selects the browser locale", async ({
   browser,
+  request,
 }, testInfo) => {
   test.skip(
     testInfo.project.name === "mobile",
     "Locale detection is independent of the viewport.",
   );
+  const response = await request.get("/");
+  const html = await response.text();
+  expect(html).toContain('name="robots" content="noindex, follow"');
+  expect(html).toContain("<h1>C2Go documentation</h1>");
+  expect(html).toContain('href="/en/"');
+  expect(html).toContain('href="/zh-cn/"');
+
   const context = await browser.newContext({
     baseURL: "http://127.0.0.1:4321",
     locale: "zh-CN",

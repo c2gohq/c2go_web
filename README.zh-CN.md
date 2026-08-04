@@ -23,6 +23,7 @@ pnpm test:e2e
 ```
 
 `pnpm build` 会把静态网站和按语言分离的 Pagefind 索引输出到 `dist/`。
+构建还会检查 canonical URL、hreflang、社交分享元数据、JSON-LD，以及可索引页面与 sitemap 是否一致。
 
 ## 文档内容
 

@@ -9,9 +9,15 @@ interface Props {
   title: string;
   description: string;
   image?: string;
+  imageAlt?: string;
+  imageWidth?: number;
+  imageHeight?: number;
   noHeader?: boolean;
   noFooter?: boolean;
+  noindex?: boolean;
+  pageType?: "website" | "article";
   headerMode?: "marketing" | "docs";
+  structuredData?: Record<string, unknown>;
 }
 
 const {
@@ -19,9 +25,15 @@ const {
   title,
   description,
   image = "/brand/c2gohq-logo.png",
+  imageAlt = "C2Go logo",
+  imageWidth = 1254,
+  imageHeight = 1254,
   noHeader = false,
   noFooter = false,
+  noindex = false,
+  pageType = "website",
   headerMode = "marketing",
+  structuredData,
 } = Astro.props;
 const canonical = new URL(Astro.url.pathname, Astro.site);
 const counterpartPath = Astro.url.pathname.startsWith("/zh-cn")
@@ -31,14 +43,60 @@ const counterpart = new URL(counterpartPath, Astro.site);
 const english = locale === "en" ? canonical : counterpart;
 const chinese = locale === "zh-cn" ? canonical : counterpart;
 const fullTitle = title === "C2Go" ? title : `${title} · C2Go`;
+const language = locale === "zh-cn" ? "zh-CN" : "en";
+const openGraphLocale = locale === "zh-cn" ? "zh_CN" : "en_US";
+const alternateOpenGraphLocale = locale === "zh-cn" ? "en_US" : "zh_CN";
+const rootUrl = new URL("/", Astro.site);
+const organizationUrl = new URL("/en/", Astro.site).href;
+const organizationId = new URL("/#organization", Astro.site).href;
+const websiteId = new URL("/#website", Astro.site).href;
+const defaultStructuredData = {
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "@id": `${canonical.href}#webpage`,
+  url: canonical.href,
+  name: fullTitle,
+  description,
+  inLanguage: language,
+  isPartOf: {
+    "@type": "WebSite",
+    "@id": websiteId,
+    url: rootUrl.href,
+    name: "C2Go",
+  },
+  about: {
+    "@type": "SoftwareSourceCode",
+    "@id": `${rootUrl.href}#software`,
+    name: "C2Go",
+  },
+  publisher: {
+    "@type": "Organization",
+    "@id": organizationId,
+    name: "C2Go",
+    url: organizationUrl,
+  },
+};
+const structuredDataJson = noindex
+  ? undefined
+  : JSON.stringify(structuredData ?? defaultStructuredData).replace(
+      /</g,
+      "\\u003c",
+    );
 ---
 
 <!doctype html>
-<html lang={locale} data-theme="system">
+<html lang={language} data-theme="system">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
+    <meta name="author" content="C2Go contributors" />
+    <meta
+      name="robots"
+      content={noindex
+        ? "noindex, follow"
+        : "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"}
+    />
     <meta
       name="theme-color"
       content="#061126"
@@ -49,18 +107,54 @@ const fullTitle = title === "C2Go" ? title : `${title} · C2Go`;
       content="#ffffff"
       media="(prefers-color-scheme: light)"
     />
-    <meta property="og:type" content="website" />
+    <meta property="og:type" content={pageType} />
+    <meta property="og:site_name" content="C2Go" />
+    <meta property="og:locale" content={openGraphLocale} />
+    <meta property="og:locale:alternate" content={alternateOpenGraphLocale} />
     <meta property="og:title" content={fullTitle} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
     <meta property="og:image" content={new URL(image, Astro.site)} />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content={String(imageWidth)} />
+    <meta property="og:image:height" content={String(imageHeight)} />
+    <meta property="og:image:alt" content={imageAlt} />
     <meta name="twitter:card" content="summary" />
-    <link rel="canonical" href={canonical} />
-    <link rel="alternate" hreflang="en" href={english} />
-    <link rel="alternate" hreflang="zh-CN" href={chinese} />
-    <link rel="alternate" hreflang="x-default" href={english} />
-    <link rel="icon" type="image/png" href="/brand/c2gohq-logo.png" />
+    <meta name="twitter:title" content={fullTitle} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={new URL(image, Astro.site)} />
+    <meta name="twitter:image:alt" content={imageAlt} />
+    {
+      !noindex && (
+        <>
+          <link rel="canonical" href={canonical} />
+          <link rel="alternate" hreflang="en" href={english} />
+          <link rel="alternate" hreflang="zh-CN" href={chinese} />
+          <link rel="alternate" hreflang="x-default" href={english} />
+          <link
+            rel="license"
+            href={new URL(`/${locale}/docs/licensing/`, Astro.site)}
+          />
+        </>
+      )
+    }
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="32x32"
+      href="/brand/c2gohq-logo-32.png"
+    />
+    <link rel="apple-touch-icon" href="/brand/c2gohq-logo-180.png" />
     <title>{fullTitle}</title>
+    {
+      structuredDataJson && (
+        <script
+          is:inline
+          type="application/ld+json"
+          set:html={structuredDataJson}
+        />
+      )
+    }
     <script is:inline>
       (() => {
         const saved = localStorage.getItem("c2go-theme") || "system";

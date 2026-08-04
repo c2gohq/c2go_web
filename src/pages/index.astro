@@ -7,11 +7,42 @@ const fallback = "/en/";
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="robots" content="noindex" />
-    <title>C2Go</title>
+    <meta name="robots" content="noindex, follow" />
+    <meta
+      name="description"
+      content="Choose the English or Simplified Chinese C2Go documentation for compiling C into importable Go packages without cgo."
+    />
+    <meta name="theme-color" content="#061126" />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="32x32"
+      href="/brand/c2gohq-logo-32.png"
+    />
+    <link
+      rel="alternate"
+      hreflang="en"
+      href="https://c2go.buymecompile.top/en/"
+    />
+    <link
+      rel="alternate"
+      hreflang="zh-CN"
+      href="https://c2go.buymecompile.top/zh-cn/"
+    />
+    <link
+      rel="alternate"
+      hreflang="x-default"
+      href="https://c2go.buymecompile.top/en/"
+    />
+    <title>C2Go Documentation — Choose a Language</title>
     <script is:inline>
       (() => {
-        const saved = localStorage.getItem("c2go-locale");
+        let saved;
+        try {
+          saved = localStorage.getItem("c2go-locale");
+        } catch {
+          // The links below remain usable when storage is unavailable.
+        }
         const detected = navigator.languages?.some((language) =>
           language.toLowerCase().startsWith("zh"),
         )
@@ -22,8 +53,74 @@ const fallback = "/en/";
         );
       })();
     </script>
+    <style is:inline>
+      :root {
+        color-scheme: dark;
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        background: #061126;
+        color: #e6edf7;
+      }
+      body {
+        min-height: 100vh;
+        margin: 0;
+        display: grid;
+        place-items: center;
+      }
+      main {
+        width: min(36rem, calc(100% - 3rem));
+        text-align: center;
+      }
+      img {
+        border-radius: 1rem;
+      }
+      h1 {
+        margin: 1.25rem 0 0.75rem;
+        font-size: clamp(2rem, 7vw, 3.5rem);
+      }
+      p {
+        color: #aebcd0;
+        line-height: 1.7;
+      }
+      nav {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-top: 1.75rem;
+      }
+      a {
+        color: #061126;
+        background: #59d7ff;
+        padding: 0.75rem 1rem;
+        border-radius: 0.65rem;
+        font-weight: 700;
+        text-decoration: none;
+      }
+      a:last-child {
+        color: #d7e2f0;
+        background: #182843;
+      }
+    </style>
   </head>
   <body>
-    <noscript><a href={fallback}>Continue to C2Go documentation</a></noscript>
+    <main>
+      <img src="/brand/c2gohq-logo-96.png" width="80" height="80" alt="" />
+      <h1>C2Go documentation</h1>
+      <p>
+        Compile C source into importable Go packages that run in the Go runtime
+        and build without cgo. Choose a language to continue.
+      </p>
+      <nav aria-label="Documentation language">
+        <a href={fallback} hreflang="en">English documentation</a>
+        <a href="/zh-cn/" hreflang="zh-CN">简体中文文档</a>
+      </nav>
+    </main>
   </body>
 </html>
