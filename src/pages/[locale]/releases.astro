@@ -31,7 +31,9 @@ const cn = locale === "zh-cn";
       >
       <div class="release-facts">
         <span>LLVM {release.llvmVersion}</span><span>Go {release.goRange}</span
-        ><span>ABI epoch {release.abiEpoch}</span>
+        ><span>C2Go ABI {release.abiEpoch}</span><span
+          >Go contract {release.goToolchainContractEpoch}</span
+        >
       </div>
     </header>
     <section class="download-section" aria-labelledby="download-heading">
@@ -81,8 +83,8 @@ const cn = locale === "zh-cn";
         <h2>{cn ? "环境要求" : "Requirements"}</h2><p>
           {
             cn
-              ? "Go 1.25.x。下载与运行机器 OS 和架构一致的平台包。Go module 必须固定相同版本的 c2go-libc。"
-              : "Go 1.25.x. Download the archive matching the host OS and architecture. Pin c2go-libc to the same coordinated version in your Go module."
+              ? "支持 Go 1.25.x 与 1.26.x。下载与运行机器 OS 和架构一致的平台包。Go module 必须固定相同版本的 c2go-libc。"
+              : "Go 1.25.x and 1.26.x are supported. Download the archive matching the host OS and architecture. Pin c2go-libc to the same coordinated version in your Go module."
           }
         </p>
       </div>

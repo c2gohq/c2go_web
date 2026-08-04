@@ -4,12 +4,12 @@ description: 将一个 C 函数编译成 Go package，并在 Go 测试中调用�
 locale: zh-cn
 section: start
 order: 3
-release: v0.20260802.0-rc.1
+release: v0.20260804.0-rc.1
 sourceLinks:
   - label: C2Go driver 回归测试
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260802.0-rc.1/clang/test/Driver/c2go-multifile.c
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260804.0-rc.1/clang/test/Driver/c2go-multifile.c
   - label: c2go-bind 用法
-    url: https://github.com/c2gohq/c2go_bind/blob/v0.20260802.0-rc.1/README.zh-CN.md#用法
+    url: https://github.com/c2gohq/c2go_bind/blob/v0.20260804.0-rc.1/README.zh-CN.md#用法
 ---
 
 本章会把一个 C 加法函数编译成 Go package，并在 Go 测试中调用它。开始前，请确认匹配版本的 SDK 已加入 `PATH`，并把 `C2GO_TARGET` 设置为下载平台包对应的 target triple。
@@ -21,7 +21,7 @@ mkdir hello-c2go
 cd hello-c2go
 mkdir .c2go
 go mod init example.com/hello-c2go
-go get github.com/c2gohq/c2go_libc@v0.20260802.0-rc.1
+go get github.com/c2gohq/c2go_libc@v0.20260804.0-rc.1
 ```
 
 设置与 SDK 匹配的 triple。以 macOS arm64 为例：

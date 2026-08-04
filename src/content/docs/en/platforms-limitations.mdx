@@ -4,12 +4,12 @@ description: Check the released platform matrix, unsupported language shapes, an
 locale: en
 section: support
 order: 18
-release: v0.20260802.0-rc.1
+release: v0.20260804.0-rc.1
 sourceLinks:
   - label: Release build matrix
-    url: https://github.com/c2gohq/c2go_toolchain/blob/v0.20260802.0-rc.1/.github/workflows/release.yml
+    url: https://github.com/c2gohq/c2go_toolchain/blob/v0.20260804.0-rc.1/.github/workflows/release.yml
   - label: Current release notes
-    url: https://github.com/c2gohq/c2go_toolchain/blob/v0.20260802.0-rc.1/RELEASE_NOTES/v0.20260802.0-rc.1.md
+    url: https://github.com/c2gohq/c2go_toolchain/blob/v0.20260804.0-rc.1/RELEASE_NOTES/v0.20260804.0-rc.1.md
 ---
 
 import SafetyNotice from "@/components/SafetyNotice.astro";
@@ -62,7 +62,7 @@ The compiler also contains a Darwin amd64 code-generation path. Windows arm64 is
 
 ## Release-candidate status
 
-The current binaries are unsigned. The macOS archive is not notarized and the Windows executable is not Authenticode-signed. Go 1.26 is outside the current release's ABI window. Interfaces, manifest fields, and ABI epochs may change before 1.0.
+The current binaries are unsigned. The macOS archive is not notarized and the Windows executable is not Authenticode-signed. Go 1.25.x and 1.26.x are supported; Go 1.27 and later fail closed until the centralized provider validates them. Interfaces, manifest fields, and ABI epochs may change before 1.0.
 
 When an unsupported shape appears, reduce it to a simpler boundary—for example, pass a pointer to explicitly owned storage instead of a large record by value—and add tests for every target you intend to ship.
 

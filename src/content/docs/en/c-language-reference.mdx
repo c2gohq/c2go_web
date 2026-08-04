@@ -4,14 +4,14 @@ description: Look up C keywords, syntax, preprocessing, and the constructs that 
 locale: en
 section: reference
 order: 14
-release: v0.20260802.0-rc.1
+release: v0.20260804.0-rc.1
 sourceLinks:
   - label: C2Go language-mode definition
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260802.0-rc.1/clang/include/clang/Basic/LangStandards.def#L113-L121
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260804.0-rc.1/clang/include/clang/Basic/LangStandards.def#L113-L121
   - label: C2Go language defaults
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260802.0-rc.1/clang/lib/Frontend/CompilerInvocation.cpp#L1806-L1833
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260804.0-rc.1/clang/lib/Frontend/CompilerInvocation.cpp#L1806-L1833
   - label: Variable-length array rejection
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260802.0-rc.1/clang/lib/Sema/SemaChecking.cpp#L2840-L2860
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260804.0-rc.1/clang/lib/Sema/SemaChecking.cpp#L2840-L2860
 ---
 
 Use this page when reviewing an existing C source tree. C2Go keeps Clang's C parser, preprocessor, and most ordinary expression semantics, then adds rules for Go stacks, GC-visible memory, and cross-runtime calls. A construct being accepted by upstream Clang does not by itself make every ABI use of that construct supported by C2Go.

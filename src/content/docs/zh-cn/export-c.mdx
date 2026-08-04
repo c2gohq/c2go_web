@@ -4,12 +4,12 @@ description: 把已定义的 C 函数和 managed record 暴露为生成的 Go AP
 locale: zh-cn
 section: guides
 order: 5
-release: v0.20260802.0-rc.1
+release: v0.20260804.0-rc.1
 sourceLinks:
   - label: 导出命名与公开宏
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260802.0-rc.1/clang/lib/Headers/c2go.h#L40-L79
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260804.0-rc.1/clang/lib/Headers/c2go.h#L40-L79
   - label: 导出重声明检查
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260802.0-rc.1/clang/test/Sema/c2go-extern-redecl-consistency.c
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260804.0-rc.1/clang/test/Sema/c2go-extern-redecl-consistency.c
 ---
 
 `c2go_extern` 会通过生成的 package 导出一个**已经定义的** C 函数。Managed record 元数据则让 `c2go-bind` 暴露与之匹配的 Go 可见布局。

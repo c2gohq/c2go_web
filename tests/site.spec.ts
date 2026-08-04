@@ -2,7 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
 test("release page points to the coordinated snapshot", async ({ page }) => {
-  const version = "v0.20260802.0-rc.1";
+  const version = "v0.20260804.0-rc.1";
   await page.goto("/en/releases/");
 
   await expect(

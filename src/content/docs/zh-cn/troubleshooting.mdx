@@ -4,14 +4,14 @@ description: 分离编译器、binder、Go ABI、runtime 与平台问题，逐�
 locale: zh-cn
 section: support
 order: 20
-release: v0.20260802.0-rc.1
+release: v0.20260804.0-rc.1
 sourceLinks:
   - label: 栈逃逸前端诊断
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260802.0-rc.1/clang/test/Sema/c2go-managed-stack-escape.c
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260804.0-rc.1/clang/test/Sema/c2go-managed-stack-escape.c
   - label: 栈逃逸 LTO 门禁
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260802.0-rc.1/llvm/test/tools/c2go-lto/escape-audit-gate.test
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260804.0-rc.1/llvm/test/tools/c2go-lto/escape-audit-gate.test
   - label: c2go-bind 环境要求
-    url: https://github.com/c2gohq/c2go_bind/blob/v0.20260802.0-rc.1/README.zh-CN.md#环境要求
+    url: https://github.com/c2gohq/c2go_bind/blob/v0.20260804.0-rc.1/README.zh-CN.md#环境要求
 ---
 
 首先确定失败发生在哪个阶段。compiler diagnostic、manifest validation error、Go build error 和 runtime crash 需要不同证据，不应把整条管线当成一个黑盒调试。
@@ -35,7 +35,7 @@ c2go-clang --target="$C2GO_TARGET" -fc2go -E -v input.c
 
 ## Go 兼容性探测失败
 
-binder 会检查当前 Go 工具链的 frame-accounting contract。应使用协同版本要求的 Go，目前是 Go 1.25.x。不要把 `--skip-go-probe` 变成永久 workaround；它只用于受控诊断。
+binder 会检查当前 Go 工具链的 frame-accounting contract。应使用协同版本支持的 Go（当前为 Go 1.25.x 或 1.26.x），并固定匹配的 c2go-libc provider。不要把 `--skip-go-probe` 变成永久 workaround；它只用于受控诊断。
 
 ```sh
 go version

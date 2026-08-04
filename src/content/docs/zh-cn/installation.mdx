@@ -4,21 +4,21 @@ description: 下载、校验并配置协同版本的 C2Go SDK 与 runtime module
 locale: zh-cn
 section: start
 order: 2
-release: v0.20260802.0-rc.1
+release: v0.20260804.0-rc.1
 sourceLinks:
   - label: SDK 中文说明
-    url: https://github.com/c2gohq/c2go_toolchain/blob/v0.20260802.0-rc.1/SDK-README.zh-CN.md
+    url: https://github.com/c2gohq/c2go_toolchain/blob/v0.20260804.0-rc.1/SDK-README.zh-CN.md
   - label: Release 资产
-    url: https://github.com/c2gohq/c2go_toolchain/releases/tag/v0.20260802.0-rc.1
+    url: https://github.com/c2gohq/c2go_toolchain/releases/tag/v0.20260804.0-rc.1
 ---
 
 Release 压缩包是可以整体移动的原生 SDK，包含三个命令行工具、C2Go 头文件、Clang runtime resource，以及再分发所需的授权记录。它不包含仓库 checkout 或源码树。
 
 ## 环境要求
 
-- Go **1.25.x**。Go 1.26 及更高版本不在当前 ABI 窗口内。
+- Go **1.25.x 或 1.26.x**。Go 1.27 及更高版本在新版中央 contract provider 完成验证前会 fail closed。
 - 与运行工具的机器 OS 和架构匹配的平台包。
-- Go module 将 `github.com/c2gohq/c2go_libc` 固定为 `v0.20260802.0-rc.1`。
+- Go module 将 `github.com/c2gohq/c2go_libc` 固定为 `v0.20260804.0-rc.1`。
 
 ## 选择平台包
 
@@ -29,10 +29,10 @@ Release 压缩包是可以整体移动的原生 SDK，包含三个命令行工�
 | `windows-amd64` | `x86_64-pc-windows-goabi`     |
 | `macos-arm64`   | `aarch64-apple-darwin`        |
 
-从 [Release 页面](https://github.com/c2gohq/c2go_toolchain/releases/tag/v0.20260802.0-rc.1)下载压缩包及同名 `.sha256` sidecar，然后只校验实际下载的平台包：
+从 [Release 页面](https://github.com/c2gohq/c2go_toolchain/releases/tag/v0.20260804.0-rc.1)下载压缩包及同名 `.sha256` sidecar，然后只校验实际下载的平台包：
 
 ```sh
-archive=c2go-toolchain-v0.20260802.0-rc.1-linux-amd64.tar.gz
+archive=c2go-toolchain-v0.20260804.0-rc.1-linux-amd64.tar.gz
 sha256sum --check "$archive.sha256"
 ```
 
@@ -45,7 +45,7 @@ sha256sum --check "$archive.sha256"
 解压后让 `bin/`、`include/` 与 `lib/` 始终位于同一个 SDK 根目录：
 
 ```sh
-export C2GO_HOME=/absolute/path/to/c2go-toolchain-v0.20260802.0-rc.1-<target>
+export C2GO_HOME=/absolute/path/to/c2go-toolchain-v0.20260804.0-rc.1-<target>
 export PATH="$C2GO_HOME/bin:$PATH"
 
 c2go-clang --version
@@ -63,10 +63,12 @@ c2go-bind --version
 
 ```sh
 go mod init example.com/demo
-go get github.com/c2gohq/c2go_libc@v0.20260802.0-rc.1
+go get github.com/c2gohq/c2go_libc@v0.20260804.0-rc.1
 ```
 
 Go runtime package 通过 module 而不是预编译 archive 分发，因为 Go package archive 会绑定精确的 Go 版本、依赖 build ID 和构建参数。
+
+Schema v2 生成库会在编译期同时核对 C2Go ABI epoch 与 Go toolchain contract epoch。未来兼容的 Go minor 版本只需升级 `c2go-libc` 中的 provider，不需要重新生成每个目标库。
 
 ## macOS quarantine
 

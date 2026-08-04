@@ -4,10 +4,10 @@ description: 在 C2Go 代码与原生 C API 之间安全传递函数指针。
 locale: zh-cn
 section: interop
 order: 12
-release: v0.20260802.0-rc.1
+release: v0.20260804.0-rc.1
 sourceLinks:
   - label: Callback 与 callout 公开契约
-    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260802.0-rc.1/clang/lib/Headers/c2go.h#L151-L196
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260804.0-rc.1/clang/lib/Headers/c2go.h#L151-L196
 ---
 
 C2Go 函数不能直接交给原生代码，因为 native caller 不知道如何进入 Go runtime。`c2go_callback` 会创建所需的 native-callable trampoline。

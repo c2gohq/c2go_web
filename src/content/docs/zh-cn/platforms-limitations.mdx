@@ -4,12 +4,12 @@ description: 检查已发布平台矩阵、不支持的语言形状和 fail-clos
 locale: zh-cn
 section: support
 order: 18
-release: v0.20260802.0-rc.1
+release: v0.20260804.0-rc.1
 sourceLinks:
   - label: Release 构建矩阵
-    url: https://github.com/c2gohq/c2go_toolchain/blob/v0.20260802.0-rc.1/.github/workflows/release.yml
+    url: https://github.com/c2gohq/c2go_toolchain/blob/v0.20260804.0-rc.1/.github/workflows/release.yml
   - label: 当前 release notes
-    url: https://github.com/c2gohq/c2go_toolchain/blob/v0.20260802.0-rc.1/RELEASE_NOTES/v0.20260802.0-rc.1.zh-CN.md
+    url: https://github.com/c2gohq/c2go_toolchain/blob/v0.20260804.0-rc.1/RELEASE_NOTES/v0.20260804.0-rc.1.zh-CN.md
 ---
 
 import SafetyNotice from "@/components/SafetyNotice.astro";
@@ -62,7 +62,7 @@ import SafetyNotice from "@/components/SafetyNotice.astro";
 
 ## 候选版本状态
 
-当前二进制尚未签名。macOS 压缩包没有 notarize，Windows 可执行文件没有 Authenticode 签名。Go 1.26 不在当前 ABI 窗口内。1.0 之前 interface、manifest field 与 ABI epoch 都可能变化。
+当前二进制尚未签名。macOS 压缩包没有 notarize，Windows 可执行文件没有 Authenticode 签名。当前支持 Go 1.25.x 与 1.26.x；Go 1.27 及以上在中央 provider 完成验证前会 fail closed。1.0 之前 interface、manifest field 与 ABI epoch 都可能变化。
 
 遇到不支持的形状时，应把边界降低为更简单的形式，例如不按值传递大 record，而是传递指向所有权明确内存的指针，并为准备发布的每个 target 添加测试。
 
