@@ -42,12 +42,12 @@ The assembly alone is not enough. The JSON manifest carries information the Go s
 
 - Go import path and exported symbol names;
 - target `GOOS` and `GOARCH`;
-- supported Go version range and C2Go ABI epoch;
+- minimum Go version, validation snapshot, C2Go ABI epoch, and Go-toolchain contract epoch;
 - record layouts, fields, and GC pointer masks;
 - Go linknames and multi-value returns;
 - native imports, libraries, callbacks, and callouts.
 
-`c2go-bind` validates agreement across every input before writing files. Conflicting targets, ABI epochs, symbols, types, or callback metadata fail closed.
+`c2go-bind` validates agreement across every input before writing files. Conflicting targets, contract epochs, symbols, types, or callback metadata fail closed. The meaning of each version field is covered in [Versions and compatibility](/en/docs/versioning/).
 
 ## Stage 4: Ordinary Go build
 

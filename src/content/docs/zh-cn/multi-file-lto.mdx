@@ -14,7 +14,7 @@ sourceLinks:
     url: https://github.com/c2gohq/c2go_bind/blob/v0.20260804.0-rc.1/README.zh-CN.md#用法
 ---
 
-真实项目中，构成同一个生成 package 的所有 translation unit，必须使用一致的 package path、target、Go 版本窗口和 ABI epoch。
+真实项目中，构成同一个生成 package 的所有 translation unit，必须使用一致的 package path、target、manifest schema 和两个 contract epoch。它们的最低 Go 版本与验证快照会按保守方式合并。
 
 ## 一次 driver 调用
 
@@ -78,7 +78,7 @@ c2go-bind --out=engine a.s b.s
 c2go-bind --out=engine engine.a
 ```
 
-binder 会精确去重，并拒绝符号、类型、全局变量、linkname、GC mask、callback、target、版本或 ABI epoch 冲突。
+binder 会精确去重，并拒绝符号、类型、全局变量、linkname、GC mask、callback、target、manifest generation 或 contract epoch 冲突。
 
 ## 构建系统规则
 

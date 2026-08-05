@@ -111,6 +111,6 @@ ok  example.com/hello-c2go
 
 ## What just happened
 
-The compiler lowered C into Plan 9 assembly for the selected Go OS and architecture. The manifest told `c2go-bind` that `add` is exported, which target and ABI epoch the assembly uses, and which runtime support is required. `c2go-bind` generated the Go-visible `Add` declaration and copied the matching assembly into the package.
+The compiler lowered C into Plan 9 assembly for the selected Go OS and architecture. The manifest told `c2go-bind` that `add` is exported, which target and contract epochs the assembly uses, and which runtime support is required. `c2go-bind` generated the Go-visible `Add` declaration and copied the matching assembly into the package.
 
 Next, inspect the [build pipeline](/en/docs/build-pipeline/) and learn why target, package path, assembly, and manifest must remain coordinated.

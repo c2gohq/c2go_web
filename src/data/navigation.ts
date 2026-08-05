@@ -109,6 +109,13 @@ export const docsNavigation: NavSection[] = [
         },
       },
       {
+        slug: "versioning",
+        title: {
+          en: "Versions and compatibility",
+          "zh-cn": "版本与兼容性",
+        },
+      },
+      {
         slug: "stack-escape-audit",
         title: {
           en: "Stack escape audit",

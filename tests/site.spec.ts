@@ -207,6 +207,40 @@ test("language reference separates C syntax from C2Go extensions", async ({
   ).toBeVisible();
 });
 
+test("versioning separates release identity from compatibility contracts", async ({
+  page,
+}) => {
+  await page.goto("/en/docs/versioning/");
+  const english = page.locator("article.docs-article");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "Versions and compatibility",
+  );
+  await expect(english).toContainText("vMAJOR.YYYYMMDD.REVISION[-rc.N]");
+  await expect(english).toContainText(
+    "Schema v2 deliberately has no max_go_version",
+  );
+  await expect(english).toContainText(
+    "A new Go minor is validated with the same Go epoch",
+  );
+  await expect(english).toContainText(
+    "Upgrade to the c2go-libc release that admits it",
+  );
+  await expect(english).toContainText(
+    "Existing output can remain while its epoch is still inside that range",
+  );
+
+  await page.goto("/zh-cn/docs/versioning/");
+  const chinese = page.locator("article.docs-article");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "版本与兼容性",
+  );
+  await expect(chinese).toContainText("未知 Go 版本只在中央位置判断一次");
+  await expect(chinese).toContainText("已有 schema v2 .go 和 .s 无需变化");
+  await expect(chinese).toContainText(
+    "避免在 c2go-libc 能同时支持新旧生成 ABI 时，让整个生态集体重建",
+  );
+});
+
 test("build-system integration keeps native linking outside the C2Go pipeline", async ({
   page,
 }) => {
@@ -329,6 +363,7 @@ test("core pages have no serious accessibility violations", async ({
     "/en/docs/managed-unmanaged/",
     "/en/docs/build-system-integration/",
     "/en/docs/c-language-reference/",
+    "/en/docs/versioning/",
     "/en/docs/stack-escape-audit/",
     "/zh-cn/docs/managed-unmanaged/",
     "/zh-cn/docs/platforms-limitations/",
@@ -367,6 +402,7 @@ test("mobile documentation has no horizontal overflow and opens the chapter draw
     "/en/docs/c-language-reference/",
     "/en/docs/c2go-extensions/",
     "/en/docs/build-system-integration/",
+    "/en/docs/versioning/",
     "/zh-cn/docs/platforms-limitations/",
   ]) {
     await page.goto(pathname);

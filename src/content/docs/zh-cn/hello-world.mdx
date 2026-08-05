@@ -111,6 +111,6 @@ ok  example.com/hello-c2go
 
 ## 刚才发生了什么
 
-编译器针对选定的 Go OS 与架构，把 C 降低成 Plan 9 汇编。manifest 告诉 `c2go-bind`：`add` 是导出函数、汇编使用哪个 target 和 ABI epoch、以及需要哪些 runtime 支持。`c2go-bind` 生成 Go 可见的 `Add` 声明，并把匹配的汇编复制到 package 中。
+编译器针对选定的 Go OS 与架构，把 C 降低成 Plan 9 汇编。manifest 告诉 `c2go-bind`：`add` 是导出函数、汇编使用哪个 target 和 contract epoch、以及需要哪些 runtime 支持。`c2go-bind` 生成 Go 可见的 `Add` 声明，并把匹配的汇编复制到 package 中。
 
 下一章进入[构建管线](/zh-cn/docs/build-pipeline/)，理解 target、package path、汇编和 manifest 为什么必须保持一致。

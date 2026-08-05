@@ -1,0 +1,140 @@
+---
+title: 版本与兼容性
+description: 理解协同发布 tag、schema v2 契约，以及什么时候必须重新生成 C2Go 目标库。
+locale: zh-cn
+section: support
+order: 19
+release: v0.20260804.0-rc.1
+sourceLinks:
+  - label: 协同发布快照
+    url: https://github.com/c2gohq/c2go_toolchain/blob/v0.20260804.0-rc.1/toolchain.lock.json
+  - label: Manifest 契约字段
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260804.0-rc.1/clang/lib/CodeGen/CodeGenAction.cpp#L505-L542
+  - label: 中央 Go toolchain provider
+    url: https://github.com/c2gohq/c2go_libc/blob/v0.20260804.0-rc.1/c2goabi/contract_epoch1.go
+  - label: 生成的编译期 anchor
+    url: https://github.com/c2gohq/c2go_bind/blob/v0.20260804.0-rc.1/main.go#L506-L541
+---
+
+C2Go 不会用一个数字回答所有兼容性问题。协同发布 tag 用来确定精确的源码与 SDK 快照；两个相互独立的 contract epoch，则决定已经生成的 Go package 能否与某个 c2go-libc 和 Go 工具链一起构建。
+
+```text
+协同发布 tag
+      │ 选择精确的组件 commit
+      ▼
+生成 manifest ── 提出要求 ──► c2go-libc/c2goabi provider
+      │                              │
+      │ 两个 contract epoch          │ 验证当前 Go 工具链
+      └──────────────────────────────┘
+                      go build 在编译期核对
+```
+
+## 协同发布版本号
+
+公开工具链使用放在 SemVer 兼容形式中的日期版本：
+
+```text
+vMAJOR.YYYYMMDD.REVISION[-rc.N]
+```
+
+| 部分       | 含义                                         |
+| ---------- | -------------------------------------------- |
+| `MAJOR`    | 兼容线；C2Go 处于 pre-1.0 阶段时保持为 `0`   |
+| `YYYYMMDD` | 建立协同 release 版本线的 UTC 日期           |
+| `REVISION` | 同一天的维护版本序号，从 `0` 开始            |
+| `rc.N`     | 可选的候选版本序号；带 `rc` 的版本不是稳定版 |
+
+例如，`v0.20260804.0-rc.1` 表示 2026-08-04 这条 pre-1.0 发布线中 revision 0 的第一个候选版本。
+
+协同 tag 会标记这次快照选中的各组件 commit。`toolchain.lock.json` 才是 c2go-clang、c2go-bind、c2go-libc 以及嵌套 musl 精确 revision 的权威记录。日期只说明拿到的是哪一版快照，**不能**单独证明它与另一版快照二进制兼容。
+
+## Schema v2 记录了什么
+
+当前 c2go-clang 输出 manifest schema v2，并显式记录兼容模型：
+
+```json
+{
+  "schema_version": 2,
+  "compatibility_model": "provider_epoch",
+  "min_go_version": "go1.25",
+  "validation_snapshot_max_exclusive": "go1.27",
+  "c2go_abi_epoch": 1,
+  "go_toolchain_contract_epoch": 1
+}
+```
+
+这些字段各自解决不同问题：
+
+| 字段                                | 实际约束                                                                  |
+| ----------------------------------- | ------------------------------------------------------------------------- |
+| `min_go_version`                    | 硬下限；生成 package 不能在更旧的 Go 上构建                               |
+| `validation_snapshot_max_exclusive` | 只用于追溯；不会被生成为未来 Go 版本的构建上限                            |
+| `c2go_abi_epoch`                    | 生成产物要求 c2go-libc 和 C2Go runtime surface 提供的 ABI generation      |
+| `go_toolchain_contract_epoch`       | `.s` 使用的 Go assembler、linker、runtime、ABI0 frame 与 GC metadata 契约 |
+
+链接多个 translation unit 时，c2go-lto 要求它们的 schema 和两个 epoch 完全一致。它会选取最高的最低 Go 版本，以及最低的验证快照上界。这样可以保守记录共同验证范围，但不会把验证快照变成兼容性门禁。
+
+Schema v2 特意不再包含 `max_go_version`。旧字段只对 legacy schema v1 产物继续生效。
+
+## 两条独立的兼容轴
+
+### C2Go ABI epoch
+
+`C2GoABIEpoch` 描述生成产物与 C2Go 自身之间的契约，包括调用约定、生成符号、GC mask 命名、manifest 解释方式和 managed memory model。生成的 `c2go_abi_anchor.go` 会检查自己的 epoch 是否落在已安装 c2go-libc 接受的范围内。
+
+当前 c2go-libc 接受的 C2Go ABI epoch 范围是 `1..1`。
+
+### Go toolchain contract epoch
+
+`GoToolchainContractEpoch` 描述 Plan 9 汇编直接依赖的 Go assembler、linker、runtime、ABI0 frame accounting、栈增长和 GC metadata 假设。生成 anchor 要求它与当前 Go 工具链所选择的 epoch 精确相等。
+
+两条轴相互独立：C2Go 可以在 Go 没有变化时修改自己的生成 ABI；未来 Go 也可能在 C2Go API 不变时修改汇编或 runtime 契约。
+
+## 为什么 provider 放在 c2go-libc
+
+c2go-clang 仍然是契约使用者：它会把两个 epoch 写入每一份 manifest。`github.com/c2gohq/c2go_libc/c2goabi` 只是 C2Go 维护者已验证契约状态在构建期的承载位置。
+
+这个 package 没有依赖，并且每次构建生成 package 时都会存在。它用 build tag 为当前 Go 版本选择已验证的 contract。当前版本的状态是：
+
+| 当前 Go 工具链 | Provider 结果                   |
+| -------------- | ------------------------------- |
+| Go 1.25.x      | Go toolchain contract epoch `1` |
+| Go 1.26.x      | Go toolchain contract epoch `1` |
+| Go 1.27 及以上 | 默认按“尚未验证”拒绝            |
+
+这样，未知 Go 版本只在中央位置判断一次。如果新的 Go minor 通过完整 C2Go contract matrix，并且仍然属于 epoch 1，维护者只需发布扩大 build-tag 边界的 c2go-libc。已有 schema v2 `.go` 和 `.s` 无需变化。
+
+`c2go_allow_unverified_go_toolchain` build tag 只是测试逃生口，不属于生产支持配置，也不能用它来声明某个 Go 版本已经兼容。
+
+## 什么时候必须重新生成目标库？
+
+| 情况                                       | 应采取的操作                                        | 重新生成 `.go`/`.s`？ |
+| ------------------------------------------ | --------------------------------------------------- | --------------------- |
+| 新 Go minor 验证后仍使用相同 Go epoch      | 升级到明确放行该版本的 c2go-libc                    | 不需要                |
+| Go 相关汇编或 runtime 契约发生变化         | 升级协同 SDK 与 c2go-libc，再使用新的 Go epoch 生成 | 需要                  |
+| 引入了更新的 C2Go ABI epoch                | 升级 c2go-libc；目标库确实需要新 ABI 时再采用新 SDK | 不会自动要求          |
+| 修复 codegen bug，但没有提升 epoch         | 只重新生成受该修复影响的目标库                      | 通常需要              |
+| Schema v1 目标库仍带未来 Go 硬上限         | 使用 schema v2 工具链做一次迁移                     | 需要                  |
+| 混入不同 schema 或 epoch generation 的输入 | 用同一套协同工具链重建所有参与的 translation unit   | 需要                  |
+
+C2Go ABI 的可接受范围就是为了避免在 c2go-libc 能同时支持新旧生成 ABI 时，让整个生态集体重建。只要旧产物的 epoch 仍在该范围内，它就可以保持不变；采用新 ABI，或未来 libc 移除旧 epoch 时才需要重新生成。Go toolchain contract 使用精确匹配，所以 Go contract epoch 真正发生变化时，必须生成新的汇编。
+
+Epoch 是兼容边界，不是宣传版本号。两个 contract 仍然兼容时，新 release tag 不会强迫目标库重新生成；反过来，日期相同也不能让 epoch 不匹配的产物变得安全。
+
+## 推荐的版本固定方式
+
+新生成目标库时，先让 SDK 与 runtime module 使用同一个协同版本：
+
+```sh
+go get github.com/c2gohq/c2go_libc@v0.20260804.0-rc.1
+go mod tidy
+
+go env GOVERSION
+go list -m github.com/c2gohq/c2go_libc
+```
+
+建议把生成 package、manifest 或可复现的生成输入，以及 `go.mod`/`go.sum` 一起提交。不要因为两份 manifest 的 JSON 外形相似，就混用来自不同工具链版本的输入。
+
+以后只有在 release notes 明确说明“相同 contract epoch 下扩大 Go 验证范围”时，才单独升级 c2go-libc。如果 anchor 报告 epoch mismatch，不要绕过检查；应安装匹配的协同工具链并重新生成目标库。
+
+当前支持组合可以在[发布页面](/zh-cn/releases/)查看，精确 revision 则固定在上方链接的 `toolchain.lock.json` 中。

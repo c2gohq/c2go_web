@@ -1,0 +1,140 @@
+---
+title: Versions and compatibility
+description: Understand coordinated release tags, schema-v2 contracts, and when generated C2Go libraries must be rebuilt.
+locale: en
+section: support
+order: 19
+release: v0.20260804.0-rc.1
+sourceLinks:
+  - label: Coordinated release snapshot
+    url: https://github.com/c2gohq/c2go_toolchain/blob/v0.20260804.0-rc.1/toolchain.lock.json
+  - label: Manifest contract fields
+    url: https://github.com/c2gohq/c2go_clang/blob/v0.20260804.0-rc.1/clang/lib/CodeGen/CodeGenAction.cpp#L505-L542
+  - label: Central Go-toolchain provider
+    url: https://github.com/c2gohq/c2go_libc/blob/v0.20260804.0-rc.1/c2goabi/contract_epoch1.go
+  - label: Generated compile-time anchor
+    url: https://github.com/c2gohq/c2go_bind/blob/v0.20260804.0-rc.1/main.go#L506-L541
+---
+
+C2Go does not use one number to answer every compatibility question. The coordinated release tag identifies an exact source and SDK snapshot. Two independent contract epochs then decide whether an already-generated Go package can be built with a particular c2go-libc and Go toolchain.
+
+```text
+coordinated release tag
+        │ selects exact component commits
+        ▼
+generated manifest ── requires ──► c2go-libc/c2goabi provider
+        │                              │
+        │ two contract epochs          │ validates the active Go toolchain
+        └──────────────────────────────┘
+                         go build checks the match
+```
+
+## Coordinated release versions
+
+Public toolchain releases use a calendar version inside a SemVer-compatible form:
+
+```text
+vMAJOR.YYYYMMDD.REVISION[-rc.N]
+```
+
+| Part       | Meaning                                                                  |
+| ---------- | ------------------------------------------------------------------------ |
+| `MAJOR`    | Compatibility line; it remains `0` while C2Go is pre-1.0                 |
+| `YYYYMMDD` | UTC date on which the coordinated release line was cut                   |
+| `REVISION` | Maintenance release counter for the same date, starting at `0`           |
+| `rc.N`     | Optional release-candidate number; an `rc` build is not a stable release |
+
+For example, `v0.20260804.0-rc.1` is the first candidate for revision zero of the 2026-08-04 pre-1.0 release line.
+
+The coordinated tag is applied to the selected component commits. `toolchain.lock.json` is the authoritative list of the exact c2go-clang, c2go-bind, c2go-libc, and nested musl revisions. The date tells you which snapshot you have; it does **not** by itself prove binary compatibility with another snapshot.
+
+## What schema v2 records
+
+Current c2go-clang output uses manifest schema v2 and records the compatibility model explicitly:
+
+```json
+{
+  "schema_version": 2,
+  "compatibility_model": "provider_epoch",
+  "min_go_version": "go1.25",
+  "validation_snapshot_max_exclusive": "go1.27",
+  "c2go_abi_epoch": 1,
+  "go_toolchain_contract_epoch": 1
+}
+```
+
+These fields have different jobs:
+
+| Field                               | Enforced meaning                                                                  |
+| ----------------------------------- | --------------------------------------------------------------------------------- |
+| `min_go_version`                    | Hard minimum. The generated package cannot build on an older Go release.          |
+| `validation_snapshot_max_exclusive` | Provenance only. It is not emitted as a future-Go build cutoff.                   |
+| `c2go_abi_epoch`                    | ABI generation required from c2go-libc and the rest of the C2Go runtime surface.  |
+| `go_toolchain_contract_epoch`       | Go assembler, linker, runtime, ABI0-frame, and GC-metadata contract used by `.s`. |
+
+When several translation units are linked, c2go-lto requires their schema and both epochs to match. It combines the highest minimum Go version with the lowest validation-snapshot upper bound. This records the conservative common validation snapshot without turning that snapshot into a compatibility gate.
+
+Schema v2 deliberately has no `max_go_version`. The old field remains meaningful only for legacy schema-v1 artifacts.
+
+## The two compatibility axes
+
+### C2Go ABI epoch
+
+`C2GoABIEpoch` covers the contract between generated output and C2Go itself: calling conventions, generated symbols, GC-mask naming, manifest interpretation, and the managed-memory model. The generated `c2go_abi_anchor.go` checks that its epoch lies inside the range accepted by the installed c2go-libc.
+
+The current c2go-libc release accepts C2Go ABI epoch `1..1`.
+
+### Go toolchain contract epoch
+
+`GoToolchainContractEpoch` covers assumptions made directly by generated Plan 9 assembly about the Go assembler, linker, runtime, ABI0 frame accounting, stack growth, and GC metadata. The generated anchor requires an exact match with the epoch selected for the active Go toolchain.
+
+The two axes are independent. C2Go can change its own generated ABI while Go remains unchanged, or a future Go release can change an assembly/runtime contract while the C2Go API remains unchanged.
+
+## Why the provider lives in c2go-libc
+
+c2go-clang is still the contract user: it records both epochs in every manifest. The `github.com/c2gohq/c2go_libc/c2goabi` package is only the build-time carrier for the contract state validated by C2Go maintainers.
+
+That package is dependency-free and is present whenever a generated package is built. Its build tags select the validated contract for the active Go release. In the current release:
+
+| Active Go toolchain | Provider result                   |
+| ------------------- | --------------------------------- |
+| Go 1.25.x           | Go toolchain contract epoch `1`   |
+| Go 1.26.x           | Go toolchain contract epoch `1`   |
+| Go 1.27 or later    | Rejected as unverified by default |
+
+This centralizes the unknown-version decision. If a new Go minor release passes the complete C2Go contract matrix without changing epoch 1, maintainers publish an updated c2go-libc provider boundary. Existing schema-v2 `.go` and `.s` files then continue to work unchanged.
+
+The `c2go_allow_unverified_go_toolchain` build tag is a test-only escape hatch. It is not a supported production configuration and must not be used to claim compatibility.
+
+## When must a library be regenerated?
+
+| Situation                                             | Required action                                                                | Regenerate `.go`/`.s`? |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------ | ---------------------- |
+| A new Go minor is validated with the same Go epoch    | Upgrade to the c2go-libc release that admits it                                | No                     |
+| Go's relevant assembly/runtime contract changes       | Upgrade the coordinated SDK and c2go-libc, then generate with the new Go epoch | Yes                    |
+| A newer C2Go ABI epoch is introduced                  | Upgrade c2go-libc; adopt the new SDK when the library needs the new ABI        | Not automatically      |
+| A code-generation bug is fixed without an epoch bump  | Regenerate only libraries that need the fix                                    | Usually                |
+| A schema-v1 library still has a future-Go hard limit  | Regenerate once with a schema-v2 toolchain                                     | Yes                    |
+| Inputs from different schema or epoch generations mix | Rebuild all contributing translation units with one coordinated toolchain      | Yes                    |
+
+The accepted C2Go ABI range is specifically designed to avoid an ecosystem-wide rebuild when c2go-libc can support old and new generated ABIs together. Existing output can remain while its epoch is still inside that range; regenerate it when adopting the new ABI or when a later libc removes the old epoch. The Go-toolchain contract uses exact matching, so an actual Go contract-epoch change does require new assembly.
+
+An epoch is a compatibility boundary, not a marketing version. A new release tag does not force regeneration when both contracts remain compatible. Conversely, matching calendar dates cannot make mismatched epochs safe.
+
+## Recommended pinning workflow
+
+For a newly generated library, begin with one coordinated release for the SDK and runtime module:
+
+```sh
+go get github.com/c2gohq/c2go_libc@v0.20260804.0-rc.1
+go mod tidy
+
+go env GOVERSION
+go list -m github.com/c2gohq/c2go_libc
+```
+
+Commit the generated package, its manifest or reproducible generation inputs, and `go.mod`/`go.sum` together. Do not combine manifests from unrelated toolchain releases merely because their JSON shape looks similar.
+
+Later, upgrade only c2go-libc when release notes explicitly say that the change extends Go-version validation under the same contract epoch. If an anchor reports an epoch mismatch, do not bypass it: install the matching coordinated toolchain and regenerate the library.
+
+The current supported combination is summarized on the [release page](/en/releases/) and frozen in the linked `toolchain.lock.json`.

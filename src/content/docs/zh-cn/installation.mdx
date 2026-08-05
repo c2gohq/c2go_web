@@ -68,7 +68,7 @@ go get github.com/c2gohq/c2go_libc@v0.20260804.0-rc.1
 
 Go runtime package 通过 module 而不是预编译 archive 分发，因为 Go package archive 会绑定精确的 Go 版本、依赖 build ID 和构建参数。
 
-Schema v2 生成库会在编译期同时核对 C2Go ABI epoch 与 Go toolchain contract epoch。未来兼容的 Go minor 版本只需升级 `c2go-libc` 中的 provider，不需要重新生成每个目标库。
+Schema v2 生成库会在编译期同时核对 C2Go ABI epoch 与 Go toolchain contract epoch。未来兼容的 Go minor 版本只需升级 `c2go-libc` 中的 provider，不需要重新生成每个目标库。完整升级规则见[版本与兼容性](/zh-cn/docs/versioning/)。
 
 ## macOS quarantine
 

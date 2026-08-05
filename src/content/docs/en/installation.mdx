@@ -68,7 +68,7 @@ go get github.com/c2gohq/c2go_libc@v0.20260804.0-rc.1
 
 The Go runtime package is distributed as a module rather than a precompiled archive because Go package archives depend on the exact Go version, dependency build IDs, and build settings.
 
-Schema-v2 generated libraries check both their C2Go ABI epoch and Go-toolchain contract epoch against that module at compile time. A compatible future Go minor release therefore needs a `c2go-libc` provider update, not regeneration of every generated library.
+Schema-v2 generated libraries check both their C2Go ABI epoch and Go-toolchain contract epoch against that module at compile time. A compatible future Go minor release therefore needs a `c2go-libc` provider update, not regeneration of every generated library. See [Versions and compatibility](/en/docs/versioning/) for the complete upgrade rules.
 
 ## macOS quarantine
 

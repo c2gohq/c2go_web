@@ -42,12 +42,12 @@ cc1 → LLVM bitcode → c2go-lto → output.s + output.json
 
 - Go import path 与导出符号名称；
 - 目标 `GOOS` 和 `GOARCH`；
-- 支持的 Go 版本范围与 C2Go ABI epoch；
+- 最低 Go 版本、验证快照、C2Go ABI epoch 与 Go toolchain contract epoch；
 - record 布局、字段与 GC pointer mask；
 - Go linkname 与多返回值；
 - 原生导入、动态库、回调和 callout。
 
-`c2go-bind` 会先验证所有输入彼此一致，再写入文件。target、ABI epoch、符号、类型或回调元数据发生冲突时会直接拒绝生成。
+`c2go-bind` 会先验证所有输入彼此一致，再写入文件。target、contract epoch、符号、类型或回调元数据发生冲突时会直接拒绝生成。各版本字段的含义见[版本与兼容性](/zh-cn/docs/versioning/)。
 
 ## 阶段四：普通 Go 构建
 
